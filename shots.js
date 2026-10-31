@@ -7,5 +7,5 @@ const { chromium } = require('playwright');
  const m=await b.newPage({viewport:{width:390,height:844},deviceScaleFactor:2,isMobile:true});await m.goto('http://localhost:3000/');await m.screenshot({path:'screenshots/landing-mobile.png'});
  await m.goto('http://localhost:3000/check');await m.click('button[data-id=giftcard]');await m.waitForSelector('.verdict');await m.screenshot({path:'screenshots/checker-mobile.png',fullPage:true});
  // signup flow
- await p.goto('http://localhost:3000/#signup');await p.fill('input[name=name]','Test User');await p.fill('input[name=email]','test@example.com');await p.click('#signupForm button');await p.waitForFunction(()=>document.getElementById('formMsg').textContent.includes('Thanks'));
+await p.goto('http://localhost:3000/?subscribed=1');await p.waitForSelector('[role=status]');
  console.log('errors:',errs);await b.close();})();
