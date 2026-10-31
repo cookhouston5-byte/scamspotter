@@ -1,0 +1,27 @@
+{
+  "name": "scamspotter",
+  "version": "1.0.0",
+  "description": "AI scam checker for small businesses",
+  "main": "server.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test/run.js && node test/extra.js",
+    "screenshots": "node shots.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "express": "^5.3.0"
+  },
+  "devDependencies": {
+    "playwright": "^1.64.1"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

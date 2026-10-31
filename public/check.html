@@ -1,0 +1,16 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Check a message — ScamSpotter</title><link rel="icon" type="image/svg+xml" href="/logo.svg"><link rel="stylesheet" href="/styles.css"></head><body style="background:var(--bg)">
+<header class="nav"><div class="wrap"><a class="logo" href="/"><img src="/logo.svg" alt="" width="30" height="30"> ScamSpotter</a><nav class="nav-links"><a href="/#pricing">Pricing</a><a class="btn sm" href="/#signup">Start free trial</a></nav></div></header>
+<div class="app-h"><div class="wrap"><h1>Check a suspicious message</h1><p>Paste an email or text. Add the sender and subject if you have them.</p></div></div>
+<div class="wrap app">
+<form class="panel" id="f">
+<div class="samples"><span class="lbl">Try an example (all fictional):</span></div>
+<div class="row2"><div class="field"><label for="sender">Sender (optional)</label><input id="sender" placeholder='"Name" &lt;name@example.com&gt; or phone'></div>
+<div class="field"><label for="subject">Subject (optional)</label><input id="subject" placeholder="Subject line"></div></div>
+<div class="field"><label for="text">Message</label><textarea id="text" placeholder="Paste the full email or text message here…" required></textarea></div>
+<button class="btn" style="width:100%" id="go" type="submit">Check message</button>
+<p class="disclaimer">Don't paste passwords or full card numbers. Results are guidance, not a guarantee; verify money requests by phone using a number you already trust.</p>
+</form>
+<div class="panel" id="out"><div class="empty">Your result will appear here.<br><small>Verdict · risk score · reasons</small></div></div>
+</div>
+<script src="/samples.js"></script><script src="/app.js"></script></body></html>
