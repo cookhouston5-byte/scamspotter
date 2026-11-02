@@ -7,7 +7,7 @@ const BAD_TLDS = ['zip','mov','xyz','top','click','link','gq','tk','ml','cf','ga
 function rx(list){ return new RegExp('\\b(' + list.join('|') + ')\\b','i'); }
 
 const RULES = [
-  { id:'urgency', cat:'Urgency pressure', w:12, re: rx(['urgent','urgently','immediately','asap','right away','within 24 hours','within 48 hours','today only','final notice','last warning','act now','time.sensitive','expires? today','before end of day','by end of day','eod','account will be (?:closed|suspended|locked|terminated)','suspended','deactivated']),
+  { id:'urgency', cat:'Urgency pressure', w:12, re: rx(['urgent','urgently','immediately','asap','right away','within 24 hours','within 48 hours','today only','final notice','last warning','act now','time.sensitive','expires? today','before end of day','by end of day','eod','account (?:will be|is|has been) (?:closed|suspended|locked|terminated|on hold)','suspended','deactivated']),
     why:'Creates time pressure ("urgent", "immediately", "final notice"). Scammers rush people so they skip verification.' },
   { id:'secrecy', cat:'Secrecy request', w:14, re: rx(["don'?t tell","do not tell","keep this (?:between us|confidential|quiet)","confidential matter","don'?t (?:call|phone) me","i'?m in a meeting","can'?t talk","in a conference","discreet"]),
     why:'Asks for secrecy or says the sender can\'t be reached by phone — classic CEO / boss impersonation.' },
@@ -25,9 +25,9 @@ const RULES = [
     why:'Asks for sensitive information (SSNs, W-2s, passwords, one-time codes, card numbers). Never send these by email or text.' },
   { id:'techsupport', cat:'Fake tech support', w:22, re: /\b(your (?:computer|pc|device|system) (?:is|has been) (?:infected|compromised|hacked|locked)|virus(?:es)? (?:detected|found)|call (?:our )?(?:support|technician|microsoft|apple|help desk)|toll.free|remote access|anydesk|teamviewer|ultraviewer|logmein|renewal (?:of|for) (?:your )?(?:subscription|norton|mcafee|geek squad)|auto.?renew(?:ed|al)|subscription (?:has been )?renewed|refund department)\b/i,
     why:'Looks like a fake tech-support or fake subscription-renewal scam (virus warnings, "call this number", remote-access tools).' },
-  { id:'prize', cat:'Too good to be true', w:14, re: /\b(you(?:'ve| have)? won|winner|congratulations|claim your (?:prize|reward|refund)|lottery|free (?:gift|iphone)|inheritance|unclaimed (?:funds|refund)|grant approved)\b/i,
+  { id:'prize', cat:'Too good to be true', w:14, re: /\b(you(?:'ve| have)? won|winner|congratulations,? you|claim your (?:prize|reward|refund)|lottery|free (?:gift|iphone)|inheritance|unclaimed (?:funds|refund)|grant approved)\b/i,
     why:'Promises a prize, refund, or windfall — a common hook to collect fees or personal info.' },
-  { id:'threat', cat:'Threats / consequences', w:10, re: /\b(legal action|lawsuit|arrest|warrant|police|penalt(?:y|ies)|fine(?:d)?|late fees?|service (?:will be )?(?:interrupted|disconnected|shut off)|power (?:will be )?(?:shut off|disconnected)|disconnection)\b/i,
+  { id:'threat', cat:'Threats / consequences', w:10, re: /\b(legal action|lawsuit|arrest|warrant|police|penalt(?:y|ies)|fined|fines|late fees?|service (?:will be )?(?:interrupted|disconnected|shut off)|power (?:will be )?(?:shut off|disconnected)|disconnection)\b/i,
     why:'Threatens penalties, legal action, or service shut-off to scare you into acting quickly.' },
   { id:'attachment', cat:'Risky attachment', w:14, re: /\b[\w-]+\.(?:html?|exe|scr|js|vbs|iso|img|zip|rar|7z|docm|xlsm|lnk|svg)\b/i,
     why:'References an attachment type often used for malware or fake login pages (.html, .zip, .exe, .iso, macro documents).' },
@@ -46,6 +46,13 @@ function extractUrls(text){
 function hostOf(u){ try{ return new URL(/^https?:/i.test(u)?u:'http://'+u).hostname.toLowerCase(); }catch{ return null; } }
 function rootDomain(h){ const p=h.split('.'); return p.slice(-2).join('.'); }
 function deLeet(s){ return s.replace(/0/g,'o').replace(/1/g,'l').replace(/3/g,'e').replace(/5/g,'s').replace(/rn/g,'m').replace(/vv/g,'w'); }
+// Brand names as people write them in display names ("Wells Fargo", "Geek Squad").
+const BRAND_WORDS = { wellsfargo:'wells fargo', bankofamerica:'bank of america', geeksquad:'geek squad', office365:'office 365', alaskausa:'alaska usa' };
+// Long brands match anywhere ("MicrosoftSupport"); short ones need a whole word, so "First National" doesn't match "irs" and "Support Groups" doesn't match "ups".
+function nameHasBrand(nameLc, b){ if(b.length>=5 && nameLc.replace(/[^a-z0-9]/g,'').includes(b)) return true; const w=(BRAND_WORDS[b]||b).split(' ').join('[\\s-]*'); return new RegExp('(^|[^a-z0-9])'+w+'($|[^a-z0-9])').test(nameLc); }
+// Brand embedded in a domain label. Short brands (ups, irs, meta…) must be a whole hyphen-separated part,
+// so "my-startups.com" isn't treated as UPS but "ups-redelivery.com" is.
+function labelHasBrand(label, b){ return b.length>=5 ? label.includes(b) : label.split('-').includes(b); }
 function lev(a,b){ const d=Array.from({length:a.length+1},(_,i)=>[i]); for(let j=1;j<=b.length;j++)d[0][j]=j; for(let i=1;i<=a.length;i++)for(let j=1;j<=b.length;j++)d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]===b[j-1]?0:1)); return d[a.length][b.length]; }
 
 function parseSender(s){
@@ -69,13 +76,13 @@ function analyze({ text = '', sender = '', subject = '' } = {}){
   const s = parseSender(sender);
   if(s && s.domain){
     const d = s.domain, root = rootDomain(d), label = root.split('.')[0];
-    const nameLc = (s.name||'').toLowerCase(); const nameNs = nameLc.replace(/[^a-z0-9]/g,'');
+    const nameLc = (s.name||'').toLowerCase();
     for(const b of BRANDS){
-      if(nameNs.includes(b) && !label.includes(b)) { add('Spoofed sender', 22, `Display name claims to be "${s.name}" but the email actually comes from ${d}.`); break; }
+      if(nameHasBrand(nameLc, b) && !label.includes(b)) { add('Spoofed sender', 22, `Display name claims to be "${s.name}" but the email actually comes from ${d}.`); break; }
     }
     const dl = deLeet(label);
     for(const b of BRANDS){
-      if(label!==b && (dl===b || (dl.includes(b) && !label.includes(b)) || (b.length>=5 && lev(label,b)<=1) || (label.includes(b) && label!==b && /[-]|secure|verify|login|support|billing|account/.test(label)))){ add('Lookalike sender domain', 25, `Sender domain "${d}" imitates ${b} but isn't the real one.`); break; }
+      if(label!==b && (dl===b || (labelHasBrand(dl,b) && !label.includes(b)) || (b.length>=5 && lev(label,b)<=1) || (labelHasBrand(label,b) && label!==b && /[-]|secure|verify|login|support|billing|account/.test(label)))){ add('Lookalike sender domain', 25, `Sender domain "${d}" imitates ${b} but isn't the real one.`); break; }
     }
     if(FREE_MAIL.includes(d) && /\b(ceo|cfo|president|owner|director|accounts|billing|payroll|invoice|bank|microsoft|paypal|support)\b/i.test(nameLc + ' ' + all.slice(0,300)))
       add('Free email for business request', 10, `Sent from a free ${d} address while acting as an executive, vendor, or company. Real businesses usually use their own domain.`);
@@ -96,7 +103,7 @@ function analyze({ text = '', sender = '', subject = '' } = {}){
     for(const b of BRANDS){
       const sub = h.slice(0, h.length-root.length);
       if(label===b) break;
-      if(dl===b || (dl.includes(b) && !label.includes(b)) || (b.length>=5 && lev(label,b)<=1) || (label.includes(b) && /[-]|secure|verify|login|support|billing|account|update/.test(label)) || sub.includes(b+'.')){
+      if(dl===b || (labelHasBrand(dl,b) && !label.includes(b)) || (b.length>=5 && lev(label,b)<=1) || (labelHasBrand(label,b) && /[-]|secure|verify|login|support|billing|account|update/.test(label)) || sub.split('.').some(part=>labelHasBrand(part,b))){
         if(!linkFlags.has('look:'+h)){ linkFlags.add('look:'+h); add('Lookalike link', 25, `Link "${h}" pretends to be ${b} but goes to a different site (${root}).`); }
         break;
       }

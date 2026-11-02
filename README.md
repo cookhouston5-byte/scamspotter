@@ -1,6 +1,6 @@
 # ScamSpotter
 
-An AI scam checker for small businesses (planned domain: scamspotter.app, not yet purchased). Staff paste a suspicious email or text and get a **verdict (Safe / Suspicious / Scam)**, a **0–100 risk score**, and **plain-English reasons**.
+An AI scam checker for small businesses, live at https://scamspotter.app. Staff paste a suspicious email or text and get a **verdict (Safe / Suspicious / Scam)**, a **0–100 risk score**, and **plain-English reasons**.
 
 Founder: Houston Cook, Anchorage, Alaska.
 
@@ -47,7 +47,7 @@ With an LLM, the final score is the average of the two scores, and it can never 
 
 **Vercel:** `vercel.json` is included and `server.js` exports the app. Vercel's filesystem is read-only/ephemeral, so before relying on signups, move them to a hosted store (Vercel Postgres/KV, Supabase, Airtable, or a form service).
 
-**Domain:** after buying scamspotter.app, point it at the host. `.app` requires HTTPS, and both Render and Vercel provide it automatically.
+**Domain:** scamspotter.app is live (Render behind Cloudflare). `.app` requires HTTPS.
 
 ## Adding the email-forwarding inbox (later)
 1. Pick an inbound email provider: Postmark Inbound, SendGrid Inbound Parse, Mailgun Routes, or Cloudflare Email Workers.
@@ -60,7 +60,8 @@ With an LLM, the final score is the average of the two scores, and it can never 
 - Heuristics are pattern-based and English-only. They can miss novel or well-written scams and can flag legit messages that discuss payments urgently. A result is guidance, not a guarantee.
 - Pasted text has no email headers, so real SPF/DKIM spoof checks aren't possible yet.
 - Links aren't fetched or checked against threat-intel feeds (e.g. Google Safe Browsing).
-- No auth, rate limiting, or accounts. Signups go to a local JSON file.
+- No auth or accounts. Signups go to a local JSON file.
+- Rate limiting is in-memory per IP (30 checks/min, 5 signups and 5 feedback messages per 10 min) and resets on restart.
 
 ## Feedback / suggested fixes
 The homepage has a "Suggest a fix or leave feedback" form (`#feedback`). Submissions go to `POST /api/feedback`
