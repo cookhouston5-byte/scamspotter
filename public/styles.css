@@ -117,3 +117,7 @@ textarea{min-height:230px;resize:vertical;font-size:15px}
 @media (max-width:350px){.logo{font-size:15px;gap:7px}.logo img{width:22px;height:22px}.btn.sm.trial{padding:6px 10px;font-size:12.5px}.hero h1{font-size:28px}}
 @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important}}
 .spin{transform-origin:center;animation:spin 1.6s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+/* legal pages */
+.legal{max-width:760px;padding-top:20px;padding-bottom:60px}
+.legal h2{font-size:20px;margin:32px 0 8px;letter-spacing:-.01em}
+.legal p{color:var(--muted);margin:0 0 12px}.legal b{color:var(--ink)}

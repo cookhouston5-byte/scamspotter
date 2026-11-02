@@ -9,7 +9,9 @@ c({sender:'First National Bank <info@fnbalaska.com>',subject:'Statement',text:'Y
 c({sender:'Support Groups <hello@helpers.org>',subject:'Tuesday',text:'Reminder: our meeting is Tuesday at 6. Please confirm if you can make it.'},'Safe');
 c({sender:'Sam <sam@acme.com>',subject:'Site',text:'Have a look at https://my-startups.com and confirm you like the layout.'},'Safe');
 c({sender:'Ana <ana@acme.com>',subject:'News',text:'Congratulations on the new baby! We had a fine time at lunch.'},'Safe');
+c({sender:'Chase Smith <chase@smithlawak.com>',subject:'Monday',text:'See you Monday at 10 for the lease review.'},'Safe');
 // ...while real impersonation still scores
+c({sender:'Chase Bank Alerts <alerts@secure-mail-center.net>',subject:'Account locked',text:'Your account is locked. Verify your identity at https://chase-verify.top/login immediately.'},'Scam');
 c({sender:'UPS Delivery <alerts@track-pkg.net>',subject:'Parcel on hold',text:'Your account is on hold. Pay the redelivery fee urgently at https://ups-redelivery.top/pay'},'Scam');
 c({text:'Your Chase account is locked. Visit chase-alerts.com now to verify your identity.'},'Scam');
 console.log('Extra tests passed');

@@ -53,6 +53,8 @@ function nameHasBrand(nameLc, b){ if(b.length>=5 && nameLc.replace(/[^a-z0-9]/g,
 // Brand embedded in a domain label. Short brands (ups, irs, meta…) must be a whole hyphen-separated part,
 // so "my-startups.com" isn't treated as UPS but "ups-redelivery.com" is.
 function labelHasBrand(label, b){ return b.length>=5 ? label.includes(b) : label.split('-').includes(b); }
+// Brands that are also common first names: only count them in a display name with a company-style word nearby.
+const NAME_LIKE = { chase: /\b(bank|banking|alerts?|online|card|cards|secur\w*|service|support|team|fraud|account|notifications?|jpmorgan)\b/ };
 function lev(a,b){ const d=Array.from({length:a.length+1},(_,i)=>[i]); for(let j=1;j<=b.length;j++)d[0][j]=j; for(let i=1;i<=a.length;i++)for(let j=1;j<=b.length;j++)d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]===b[j-1]?0:1)); return d[a.length][b.length]; }
 
 function parseSender(s){
@@ -78,7 +80,7 @@ function analyze({ text = '', sender = '', subject = '' } = {}){
     const d = s.domain, root = rootDomain(d), label = root.split('.')[0];
     const nameLc = (s.name||'').toLowerCase();
     for(const b of BRANDS){
-      if(nameHasBrand(nameLc, b) && !label.includes(b)) { add('Spoofed sender', 22, `Display name claims to be "${s.name}" but the email actually comes from ${d}.`); break; }
+      if(nameHasBrand(nameLc, b) && !label.includes(b) && (!NAME_LIKE[b] || NAME_LIKE[b].test(nameLc))) { add('Spoofed sender', 22, `Display name claims to be "${s.name}" but the email actually comes from ${d}.`); break; }
     }
     const dl = deLeet(label);
     for(const b of BRANDS){
