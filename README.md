@@ -61,3 +61,11 @@ With an LLM, the final score is the average of the two scores, and it can never 
 - Pasted text has no email headers, so real SPF/DKIM spoof checks aren't possible yet.
 - Links aren't fetched or checked against threat-intel feeds (e.g. Google Safe Browsing).
 - No auth, rate limiting, or accounts. Signups go to a local JSON file.
+
+## Feedback / suggested fixes
+The homepage has a "Suggest a fix or leave feedback" form (`#feedback`). Submissions go to `POST /api/feedback`
+(optional name/email, message 5–2000 chars, honeypot field, 5 per IP per 10 min, HTML-escaped) and are appended as
+JSON Lines to `data/feedback.jsonl` (override with `FEEDBACK_FILE`, e.g. a Render persistent disk path). Each entry is
+also logged to stdout as `[feedback] {...}`. Nothing is shown publicly. To read them, set `FEEDBACK_TOKEN` and call
+`GET /api/feedback` with `Authorization: Bearer <token>` (the endpoint returns 404 when the token is unset).
+Note: on Render's free plan the filesystem is ephemeral and is wiped on every deploy/restart, so rely on the logs or a disk.

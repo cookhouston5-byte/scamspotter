@@ -7,27 +7,28 @@ header.nav{position:sticky;top:0;z-index:10;background:rgba(255,255,255,.92);bac
 .logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:20px;color:var(--navy);text-decoration:none;letter-spacing:-.02em}
 .logo svg,.logo img{width:30px;height:30px}
 .nav-links{display:flex;gap:26px;align-items:center}.nav-links a{color:var(--muted);text-decoration:none;font-weight:500;font-size:15px}.nav-links a:hover{color:var(--navy)}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--brand);color:#fff!important;border:0;border-radius:10px;padding:12px 20px;font-weight:600;font-size:15px;text-decoration:none;cursor:pointer;transition:.15s;font-family:inherit}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--brand);color:#fff!important;border:0;border-radius:10px;padding:12px 20px;font-weight:600;font-size:15px;text-decoration:none;cursor:pointer;transition:.15s;font-family:inherit;white-space:nowrap}
 .btn:hover{background:var(--brand2);transform:translateY(-1px)}.btn.ghost{background:transparent;color:var(--navy)!important;border:1.5px solid var(--line)}.btn.ghost:hover{border-color:var(--navy);background:#fff}
 .btn.white{background:#fff;color:var(--navy)!important}.btn.sm{padding:9px 15px;font-size:14px}
+.btn.trial{padding:10px 18px;font-size:14px}.btn.sm.trial{padding:7px 13px;font-size:13px}
 .hero{background:radial-gradient(1200px 500px at 85% -10%,#2a5aa8 0,transparent 60%),linear-gradient(160deg,var(--navy),var(--navy2));color:#fff;padding:84px 0 92px;overflow:hidden}
 .hero .wrap{display:grid;grid-template-columns:1.1fr .9fr;gap:48px;align-items:center}
 .eyebrow{display:inline-block;font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#9cc2ff;background:rgba(255,255,255,.08);padding:6px 12px;border-radius:99px;margin-bottom:18px}
 .hero h1{font-size:52px;line-height:1.07;margin:0 0 18px;letter-spacing:-.03em}.hero p.lead{font-size:19px;color:#c9d6ea;margin:0 0 30px;max-width:540px}
-.hero .ctas{display:flex;gap:12px;flex-wrap:wrap}.hero .fine{font-size:14px;color:#9fb1cc;margin-top:16px}
+.hero .ctas{display:flex;gap:12px;flex-wrap:wrap;align-items:center}.hero .fine{font-size:14px;color:#9fb1cc;margin-top:16px}
 .mock{background:#fff;color:var(--ink);border-radius:18px;padding:22px;box-shadow:0 30px 70px rgba(0,0,0,.35)}
 .mock .msg{background:var(--bg);border-radius:10px;padding:14px;font-size:14px;color:var(--muted);border:1px solid var(--line)}
 .mock .msg b{color:var(--ink)}.mock .res{margin-top:16px;display:flex;align-items:center;gap:14px}
 .pill{display:inline-flex;align-items:center;gap:6px;font-weight:700;border-radius:99px;padding:6px 14px;font-size:14px}
 .pill.Scam{background:var(--bad-bg);color:var(--bad)}.pill.Suspicious{background:var(--warn-bg);color:var(--warn)}.pill.Safe{background:var(--safe-bg);color:var(--safe)}
 .mock ul{margin:12px 0 0;padding-left:18px;font-size:14px}.mock li{margin:4px 0}.mock .tag{font-size:12px;color:var(--muted);margin-top:12px;font-style:italic}
-section{padding:84px 0}section.alt{background:var(--bg)}
+section{padding:84px 0;scroll-margin-top:64px}section.alt{background:var(--bg)}
 .sec-h{text-align:center;max-width:680px;margin:0 auto 48px}.sec-h h2{font-size:38px;letter-spacing:-.02em;margin:0 0 12px;color:var(--navy);line-height:1.15}.sec-h p{color:var(--muted);font-size:18px;margin:0}
 .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
 .card{background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:26px}.card h3{margin:12px 0 8px;font-size:19px;color:var(--navy)}.card p{margin:0;color:var(--muted);font-size:15.5px}
 .num{width:38px;height:38px;border-radius:10px;background:#e8f0fe;color:var(--brand);font-weight:800;display:grid;place-items:center}
 .ico{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-size:22px;background:#eef3fb}
-.threats{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:22px}
+.threats{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr));gap:22px}
 .threats .card .eg{margin-top:12px;font-size:14px;background:var(--bg);border-left:3px solid var(--bad);padding:8px 12px;border-radius:6px;color:var(--ink)}
 .price{max-width:460px;margin:0 auto;background:#fff;border:2px solid var(--brand);border-radius:20px;padding:36px;text-align:center;box-shadow:0 20px 50px rgba(31,111,235,.12)}
 .price .amt{font-size:58px;font-weight:800;color:var(--navy);letter-spacing:-.03em}.price .amt span{font-size:18px;color:var(--muted);font-weight:500}
@@ -42,6 +43,8 @@ input,textarea{width:100%;font:inherit;font-size:16px;padding:13px 14px;border:1
 input:focus,textarea:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(31,111,235,.15)}
 form.signup .full{grid-column:1/-1}.formmsg{grid-column:1/-1;text-align:center;font-size:15px;min-height:22px}
 footer{padding:36px 0;color:var(--muted);font-size:14px;border-top:1px solid var(--line)}footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
+#feedback{background:var(--bg)}form.fb label{text-align:left}form.fb textarea{min-height:130px}form.fb .count{font-size:12px;color:var(--muted);text-align:right;margin-top:4px}
+.hp{position:absolute!important;left:-9999px;width:1px;height:1px;overflow:hidden}
 /* checker */
 .app-h{background:linear-gradient(160deg,var(--navy),var(--navy2));color:#fff;padding:40px 0 34px}.app-h h1{margin:0 0 6px;font-size:34px;letter-spacing:-.02em}.app-h p{margin:0;color:#c9d6ea}
 .app{display:grid;grid-template-columns:1fr 1fr;gap:26px;padding:32px 22px 60px;align-items:start}
@@ -62,4 +65,4 @@ textarea{min-height:230px;resize:vertical;font-size:15px}
 .llm{margin-top:14px;border:1px dashed var(--line);border-radius:10px;padding:12px 16px;font-size:14px;color:var(--muted)}
 .disclaimer{font-size:13px;color:var(--muted);margin-top:14px}
 @media (max-width:900px){.hero .wrap,.app{grid-template-columns:1fr}.grid3{grid-template-columns:1fr}.hero h1{font-size:38px}.sec-h h2{font-size:30px}.nav-links a:not(.btn){display:none}section{padding:60px 0}.hero{padding:56px 0 64px}}
-@media (max-width:560px){form.signup,.row2{grid-template-columns:1fr}.hero h1{font-size:33px}.price{padding:26px}}
+@media (max-width:560px){.nav-links{gap:10px}.nav-links .nav-check{display:none}.logo{font-size:18px}.threats{grid-template-columns:1fr}form.signup,.row2{grid-template-columns:1fr}.hero h1{font-size:33px}.price{padding:26px}}
