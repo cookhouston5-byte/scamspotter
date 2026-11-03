@@ -1,27 +1,84 @@
-const express = require('express'); const fs = require('fs'); const path = require('path');
+const express = require('express'); const fs = require('fs'); const path = require('path'); const crypto = require('crypto');
 const { analyze } = require('./engine'); const { llmAnalyze } = require('./llm');
-const crypto = require('crypto');
+const { makeKey, parseKey, isActiveCustomer, stripeGet, stripePost, planInfo, verifyStripeSignature } = require('./access');
+const { sendEmail, notifyOwner, welcomeEmail } = require('./emails');
+
+const SITE = process.env.SITE_URL || 'https://scamspotter.app';
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data'); // point at a persistent disk in production
+const FEEDBACK = process.env.FEEDBACK_FILE || path.join(DATA_DIR, 'feedback.jsonl');
+const REVIEWS = path.join(DATA_DIR, 'reviews.jsonl');
+const FREE_PER_DAY = Math.max(0, Number(process.env.FREE_CHECKS_PER_DAY ?? 5));
+
 const app = express(); app.set('trust proxy', 1); app.disable('x-powered-by');
-// Basic security headers (no CSP yet: the pages use inline scripts/styles).
+// Security headers (no CSP yet: the pages use inline scripts/styles).
 app.use((req,res,next)=>{ res.set({ 'Strict-Transport-Security':'max-age=31536000; includeSubDomains', 'X-Content-Type-Options':'nosniff',
   'X-Frame-Options':'DENY', 'Referrer-Policy':'strict-origin-when-cross-origin', 'Permissions-Policy':'camera=(), microphone=(), geolocation=()' }); next(); });
-app.use(express.json({ limit:'200kb' }));
+
+// The site sits behind Cloudflare, which passes the visitor's real IP in CF-Connecting-IP.
+const clientIp = req => String(req.get('cf-connecting-ip') || req.ip || 'unknown');
+
 // Simple in-memory per-IP rate limiter (resets on restart; fine for a single instance).
-function limiter(max, windowMs){ const hits = new Map(); return (req,res,next)=>{
-  const now = Date.now(), ip = req.ip || 'unknown'; const h = (hits.get(ip) || []).filter(t => now - t < windowMs);
-  if(h.length >= max){ res.set('Retry-After', String(Math.ceil(windowMs/1000))); return res.status(429).json({ error:'Too many checks in a short time. Please wait a minute and try again.' }); }
+function limiter(max, windowMs, msg){ const hits = new Map(); return (req,res,next)=>{
+  const now = Date.now(), ip = clientIp(req); const h = (hits.get(ip) || []).filter(t => now - t < windowMs);
+  if(h.length >= max){ res.set('Retry-After', String(Math.ceil(windowMs/1000))); return res.status(429).json({ error: msg || 'Too many requests in a short time. Please wait a minute and try again.' }); }
   h.push(now); hits.set(ip, h); if(hits.size > 10000) hits.clear(); next(); }; }
+
+// Stripe webhook needs the raw body for signature checks, so it is registered before express.json().
+const seenEvents = new Set();
+app.post('/api/stripe/webhook', express.raw({ type:'*/*', limit:'1mb' }), async (req,res)=>{
+  const raw = Buffer.isBuffer(req.body) ? req.body.toString('utf8') : '';
+  if(!verifyStripeSignature(raw, req.get('stripe-signature'), process.env.STRIPE_WEBHOOK_SECRET)) return res.status(400).json({ error:'Bad signature' });
+  let ev; try{ ev = JSON.parse(raw); }catch{ return res.status(400).json({ error:'Bad payload' }); }
+  if(seenEvents.has(ev.id)) return res.json({ received:true, duplicate:true });
+  seenEvents.add(ev.id); if(seenEvents.size > 5000) seenEvents.clear();
+  const o = (ev.data && ev.data.object) || {};
+  try{
+    if(ev.type === 'checkout.session.completed'){
+      const email = o.customer_details?.email || o.customer_email, name = o.customer_details?.name || '';
+      const key = makeKey(o.customer);
+      if(email){ const m = welcomeEmail({ name, key }); await sendEmail({ to: email, ...m }); }
+      await notifyOwner('New trial started', { Name: name, Email: email, Customer: o.customer, Business: o.custom_fields?.map(f => f.text?.value).filter(Boolean).join(', ') });
+    } else if(ev.type === 'customer.subscription.deleted'){
+      await notifyOwner('Subscription canceled', { Customer: o.customer, Status: o.status });
+    }
+  }catch(e){ console.error('webhook handling failed:', e.message); }
+  res.json({ received:true });
+});
+
+app.use(express.json({ limit:'200kb' }));
+app.get('/subscribed', (req,res)=>res.redirect(302, '/welcome'));
 app.use(express.static(path.join(__dirname,'public'), { extensions:['html'] }));
-const DATA = path.join(__dirname,'data','signups.json');
 
 app.get('/api/health', (req,res)=>res.json({ ok:true, llm: !!process.env.OPENAI_API_KEY }));
-app.post('/api/analyze', limiter(30, 60000), async (req,res)=>{
+
+// Plan / quota helpers
+const today = () => new Date().toISOString().slice(0,10);
+const freeUse = new Map(); // "ip|date" -> count
+const freeKey = req => clientIp(req) + '|' + today();
+const freeLeft = req => Math.max(0, FREE_PER_DAY - (freeUse.get(freeKey(req)) || 0));
+async function teamFromReq(req){
+  const raw = req.get('x-team-key'); if(!raw) return { has:false };
+  const customer = parseKey(raw); if(!customer) return { has:true, valid:false };
+  return { has:true, valid: await isActiveCustomer(customer), customer };
+}
+
+app.post('/api/analyze', limiter(30, 60000, 'Too many checks in a short time. Please wait a minute and try again.'), async (req,res)=>{
   const { text='', sender='', subject='' } = req.body||{};
   if(!String(text).trim()) return res.status(400).json({ error:'Paste the message text to check.' });
   if(String(text).length > 50000) return res.status(413).json({ error:'Message too long (50,000 characters max).' });
+  const team = await teamFromReq(req);
+  let plan;
+  if(team.valid) plan = { type:'team' };
+  else {
+    const left = freeLeft(req);
+    if(left <= 0) return res.status(402).json({ error:`You've used your ${FREE_PER_DAY} free checks for today.`, limit:true, plan:{ type:'free', remaining:0, limit:FREE_PER_DAY, badKey: team.has } });
+    const k = freeKey(req); freeUse.set(k, (freeUse.get(k) || 0) + 1);
+    if(freeUse.size > 50000){ const d = '|' + today(); for(const x of freeUse.keys()) if(!x.endsWith(d)) freeUse.delete(x); }
+    plan = { type:'free', remaining: left - 1, limit: FREE_PER_DAY, badKey: team.has };
+  }
   const h = analyze({ text, sender, subject });
   const llm = await llmAnalyze({ text, sender, subject }, h);
-  let result = { ...h, llm };
+  let result = { ...h, llm, plan };
   if(llm && !llm.error && llm.verdict){
     // blend: weighted average, never lower than a strong rule-based hit
     const blended = Math.round(h.score*0.5 + llm.score*0.5);
@@ -31,46 +88,93 @@ app.post('/api/analyze', limiter(30, 60000), async (req,res)=>{
   }
   res.json(result);
 });
-app.post('/api/signup', limiter(5, 600000), (req,res)=>{
-  const name = String(req.body?.name||'').trim().slice(0,100); const email = String(req.body?.email||'').trim().toLowerCase().slice(0,200);
-  if(!name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error:'Please enter your name and a valid email.' });
-  let list=[]; try{ list = JSON.parse(fs.readFileSync(DATA,'utf8')); }catch{}
-  if(!list.some(x=>x.email===email)) list.push({ name, email, business: String(req.body?.business||'').slice(0,150), at:new Date().toISOString() });
-  fs.mkdirSync(path.dirname(DATA),{recursive:true}); fs.writeFileSync(DATA, JSON.stringify(list,null,2));
-  res.json({ ok:true });
+
+// Plan status for the sidebar ("Your plan").
+app.get('/api/plan', limiter(30, 60000), async (req,res)=>{
+  const portalLogin = process.env.STRIPE_PORTAL_LOGIN_URL || null;
+  const team = await teamFromReq(req);
+  if(!team.has) return res.json({ plan:'free', remaining: freeLeft(req), limit: FREE_PER_DAY, portalLogin });
+  if(!team.customer) return res.status(401).json({ error:'That access key isn’t valid. Check it was copied in full.', plan:'free', remaining: freeLeft(req), limit: FREE_PER_DAY, portalLogin });
+  try{
+    const info = await planInfo(team.customer);
+    res.json({ ...info, active: team.valid, canManage: !!process.env.STRIPE_SECRET_KEY || !!portalLogin, portalLogin });
+  }catch(e){ console.error('plan lookup failed:', e.message); res.json({ plan:'team', status:'unknown', active: team.valid, canManage:true, portalLogin }); }
 });
-// Feedback / suggested fixes. Stored server-side only (JSON Lines), never shown publicly.
-const FEEDBACK = process.env.FEEDBACK_FILE || path.join(__dirname,'data','feedback.jsonl');
+
+// "Manage subscription": opens Stripe's billing portal for this customer (update card, invoices, cancel).
+app.post('/api/billing-portal', limiter(10, 60000), async (req,res)=>{
+  const customer = parseKey(req.get('x-team-key'));
+  const login = process.env.STRIPE_PORTAL_LOGIN_URL;
+  if(customer && process.env.STRIPE_SECRET_KEY){
+    try{ const s = await stripePost('billing_portal/sessions', { customer, return_url: SITE + '/?menu=plan' }); return res.json({ url: s.url }); }
+    catch(e){ console.error('portal failed:', e.message); }
+  }
+  if(login) return res.json({ url: login });
+  res.status(503).json({ error:'Subscription management isn’t set up yet. Email hello@scamspotter.app and we’ll help right away.' });
+});
+
+// After Stripe checkout: /welcome?session_id=cs_... shows the team key right away (it's also emailed).
+app.get('/api/welcome', limiter(20, 60000), async (req,res)=>{
+  const id = String(req.query.session_id || '');
+  if(!/^cs_[A-Za-z0-9_]+$/.test(id) || !process.env.STRIPE_SECRET_KEY) return res.json({ ok:false });
+  try{
+    const s = await stripeGet('checkout/sessions/' + id);
+    if(s.status !== 'complete' || !s.customer) return res.json({ ok:false });
+    res.json({ ok:true, key: makeKey(s.customer), name: s.customer_details?.name || '', email: s.customer_details?.email || '' });
+  }catch(e){ console.error('welcome lookup failed:', e.message); res.json({ ok:false }); }
+});
+
+// Feedback and reviews. Stored server-side (JSON Lines) and copied to OWNER_EMAIL; never shown publicly automatically.
 const escHtml = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const clean = (v, max) => escHtml(String(v ?? '').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g,'').trim().slice(0, max));
-const fbHits = new Map(); // simple per-IP rate limit: 5 per 10 minutes
-app.post('/api/feedback', (req,res)=>{
+const plain = (v, max) => String(v ?? '').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g,'').trim().slice(0, max);
+const validEmail = e => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e) && e.length <= 200;
+function appendLine(file, entry){ try{ fs.mkdirSync(path.dirname(file),{recursive:true}); fs.appendFileSync(file, JSON.stringify(entry)+'\n'); }catch(e){ console.error('write failed:', e.message); } }
+const ipHash = req => crypto.createHash('sha256').update(clientIp(req)).digest('hex').slice(0,12);
+
+app.post('/api/feedback', limiter(5, 600000, 'Thanks! You\'ve sent a few already. Please try again later.'), (req,res)=>{
   const b = req.body || {};
   if(String(b.website||'').trim()) return res.json({ ok:true }); // honeypot filled: silently drop
   const raw = String(b.message ?? '').trim();
   if(raw.length < 5) return res.status(400).json({ error:'Please write a message (at least 5 characters).' });
   if(raw.length > 2000) return res.status(400).json({ error:'Message too long (2,000 characters max).' });
   const email = String(b.email ?? '').trim().toLowerCase();
-  if(email && (email.length > 200 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) return res.status(400).json({ error:'That email doesn\'t look right. Leave it blank or fix it.' });
-  const now = Date.now(), ip = req.ip || 'unknown';
-  const hits = (fbHits.get(ip) || []).filter(t => now - t < 600000);
-  if(hits.length >= 5) return res.status(429).json({ error:'Thanks! You\'ve sent a few already. Please try again later.' });
-  hits.push(now); fbHits.set(ip, hits); if(fbHits.size > 5000) fbHits.clear();
+  if(email && !validEmail(email)) return res.status(400).json({ error:'That email doesn\'t look right. Leave it blank or fix it.' });
   const entry = { id: crypto.randomUUID(), at: new Date().toISOString(), name: clean(b.name,100), email: clean(email,200),
-    page: clean(b.page,200), message: clean(raw,2000), ip: crypto.createHash('sha256').update(ip).digest('hex').slice(0,12) };
-  try{ fs.mkdirSync(path.dirname(FEEDBACK),{recursive:true}); fs.appendFileSync(FEEDBACK, JSON.stringify(entry)+'\n'); }
-  catch(e){ console.error('feedback write failed:', e.message); }
-  console.log('[feedback]', JSON.stringify(entry)); // also lands in the Render log stream
+    page: clean(b.page,200), message: clean(raw,2000), ip: ipHash(req) };
+  appendLine(FEEDBACK, entry); console.log('[feedback]', JSON.stringify(entry));
+  notifyOwner('New feedback', { Name: plain(b.name,100), Email: email, Page: plain(b.page,200), Message: plain(raw,2000) });
   res.json({ ok:true });
 });
-// Owner-only read: disabled unless FEEDBACK_TOKEN is set; send it as "Authorization: Bearer <token>".
+
+app.post('/api/reviews', limiter(3, 600000, 'Thanks! You\'ve sent a few already. Please try again later.'), (req,res)=>{
+  const b = req.body || {};
+  if(String(b.website||'').trim()) return res.json({ ok:true });
+  const comment = String(b.comment ?? '').trim(), name = String(b.name ?? '').trim();
+  const rating = Math.round(Number(b.rating));
+  if(!name) return res.status(400).json({ error:'Please add your name (first name is fine).' });
+  if(!(rating >= 1 && rating <= 5)) return res.status(400).json({ error:'Please choose a rating from 1 to 5.' });
+  if(comment.length < 5) return res.status(400).json({ error:'Please write a short comment (at least 5 characters).' });
+  if(comment.length > 1000) return res.status(400).json({ error:'Comment too long (1,000 characters max).' });
+  const entry = { id: crypto.randomUUID(), at: new Date().toISOString(), name: clean(name,80), business: clean(b.business,120),
+    rating, comment: clean(comment,1000), ip: ipHash(req), approved:false };
+  appendLine(REVIEWS, entry); console.log('[review]', JSON.stringify(entry));
+  notifyOwner(`New ${rating}-star review (needs approval)`, { Name: plain(name,80), Business: plain(b.business,120), Rating: rating + '/5', Comment: plain(comment,1000),
+    'To publish it': 'Add it to public/reviews.json and redeploy.' });
+  res.json({ ok:true });
+});
+
+// Owner-only read: disabled unless FEEDBACK_TOKEN is set; send it as "Authorization: Bearer <token>". ?type=reviews for reviews.
 app.get('/api/feedback', (req,res)=>{
   const tok = process.env.FEEDBACK_TOKEN; const got = String(req.get('authorization')||'').replace(/^Bearer\s+/i,'');
   if(!tok || got.length !== tok.length || !crypto.timingSafeEqual(Buffer.from(got), Buffer.from(tok))) return res.status(404).json({ error:'Not found' });
-  let items = []; try{ items = fs.readFileSync(FEEDBACK,'utf8').split('\n').filter(Boolean).map(l=>JSON.parse(l)); }catch{}
+  const file = req.query.type === 'reviews' ? REVIEWS : FEEDBACK;
+  let items = []; try{ items = fs.readFileSync(file,'utf8').split('\n').filter(Boolean).map(l=>JSON.parse(l)); }catch{}
   res.json({ count: items.length, items });
 });
+
 app.use('/api', (req,res)=>res.status(404).json({ error:'Not found' }));
+app.use((req,res)=>res.status(404).sendFile(path.join(__dirname,'public','404.html')));
 // JSON errors for API calls (malformed JSON, oversized body) instead of an HTML error page / stack trace
 app.use((err, req, res, next)=>{
   const status = err.status || err.statusCode || 500;
