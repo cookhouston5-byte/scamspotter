@@ -1,6 +1,6 @@
-const express = require('express'); const fs = require('fs'); const path = require('path'); const crypto = require('crypto');
+const express = require('express'); const fs = require('fs'); const net = require('net'); const path = require('path'); const crypto = require('crypto');
 const { analyze } = require('./engine'); const { llmAnalyze } = require('./llm');
-const { makeKey, parseKey, isActiveCustomer, stripeGet, stripePost, planInfo, verifyStripeSignature } = require('./access');
+const { makeKey, parseKey, parseKeyFull, isActiveCustomer, stripeGet, stripePost, planInfo, verifyStripeSignature } = require('./access');
 const { sendEmail, notifyOwner, welcomeEmail } = require('./emails');
 
 const SITE = process.env.SITE_URL || 'https://scamspotter.app';
@@ -9,13 +9,28 @@ const FEEDBACK = process.env.FEEDBACK_FILE || path.join(DATA_DIR, 'feedback.json
 const REVIEWS = path.join(DATA_DIR, 'reviews.jsonl');
 const FREE_PER_DAY = Math.max(0, Number(process.env.FREE_CHECKS_PER_DAY ?? 5));
 
-const app = express(); app.set('trust proxy', 1); app.disable('x-powered-by');
+// Render puts one proxy hop in front of the app, so trust exactly one X-Forwarded-For hop (override with TRUST_PROXY).
+const TRUST_PROXY = process.env.TRUST_PROXY ?? '1';
+const app = express(); app.set('trust proxy', /^\d+$/.test(TRUST_PROXY) ? Number(TRUST_PROXY) : TRUST_PROXY === 'true' ? true : TRUST_PROXY === 'false' ? false : TRUST_PROXY); app.disable('x-powered-by');
 // Security headers (no CSP yet: the pages use inline scripts/styles).
 app.use((req,res,next)=>{ res.set({ 'Strict-Transport-Security':'max-age=31536000; includeSubDomains', 'X-Content-Type-Options':'nosniff',
   'X-Frame-Options':'DENY', 'Referrer-Policy':'strict-origin-when-cross-origin', 'Permissions-Policy':'camera=(), microphone=(), geolocation=()' }); next(); });
 
-// The site sits behind Cloudflare, which passes the visitor's real IP in CF-Connecting-IP.
-const clientIp = req => String(req.get('cf-connecting-ip') || req.ip || 'unknown');
+// The site sits behind Cloudflare, which passes the visitor's real IP in CF-Connecting-IP. That header is only
+// trusted when the request actually reached us from a Cloudflare address (req.ip, as reported by Render's proxy);
+// anyone hitting the origin directly could otherwise set it to dodge the free limit and rate limits.
+// Ranges from https://www.cloudflare.com/ips/ (override with CLOUDFLARE_IPS, comma-separated CIDRs).
+const CF_RANGES = (process.env.CLOUDFLARE_IPS || '173.245.48.0/20,103.21.244.0/22,103.22.200.0/22,103.31.4.0/22,141.101.64.0/18,108.162.192.0/18,190.93.240.0/20,188.114.96.0/20,197.234.240.0/22,198.41.128.0/17,162.158.0.0/15,104.16.0.0/13,104.24.0.0/14,172.64.0.0/13,131.0.72.0/22,2400:cb00::/32,2606:4700::/32,2803:f800::/32,2405:b500::/32,2405:8100::/32,2a06:98c0::/29,2c0f:f248::/32').split(',').map(x => x.trim()).filter(Boolean);
+const cfList = new net.BlockList();
+for(const r of CF_RANGES){ const [a, bits] = r.split('/'); try{ cfList.addSubnet(a, Number(bits), net.isIPv6(a) ? 'ipv6' : 'ipv4'); }catch(e){ console.error('bad CLOUDFLARE_IPS entry:', r); } }
+const normIp = ip => String(ip || '').replace(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/, '$1');
+function isCloudflare(ip){ ip = normIp(ip); const v = net.isIP(ip); if(!v) return false; try{ return cfList.check(ip, v === 6 ? 'ipv6' : 'ipv4'); }catch{ return false; } }
+function clientIp(req){
+  const peer = normIp(req.ip);
+  const cf = String(req.get('cf-connecting-ip') || '').trim();
+  if(cf && net.isIP(cf) && isCloudflare(peer)) return normIp(cf);
+  return peer || 'unknown';
+}
 
 // Simple in-memory per-IP rate limiter (resets on restart; fine for a single instance).
 function limiter(max, windowMs, msg){ const hits = new Map(); return (req,res,next)=>{
@@ -35,7 +50,7 @@ app.post('/api/stripe/webhook', express.raw({ type:'*/*', limit:'1mb' }), async 
   try{
     if(ev.type === 'checkout.session.completed'){
       const email = o.customer_details?.email || o.customer_email, name = o.customer_details?.name || '';
-      const key = makeKey(o.customer);
+      const key = makeKey(o.customer, o.created ? o.created * 1000 : Date.now());
       if(email){ const m = welcomeEmail({ name, key }); await sendEmail({ to: email, ...m }); }
       await notifyOwner('New trial started', { Name: name, Email: email, Customer: o.customer, Business: o.custom_fields?.map(f => f.text?.value).filter(Boolean).join(', ') });
     } else if(ev.type === 'customer.subscription.deleted'){
@@ -58,8 +73,8 @@ const freeKey = req => clientIp(req) + '|' + today();
 const freeLeft = req => Math.max(0, FREE_PER_DAY - (freeUse.get(freeKey(req)) || 0));
 async function teamFromReq(req){
   const raw = req.get('x-team-key'); if(!raw) return { has:false };
-  const customer = parseKey(raw); if(!customer) return { has:true, valid:false };
-  return { has:true, valid: await isActiveCustomer(customer), customer };
+  const k = parseKeyFull(raw); if(!k) return { has:true, valid:false };
+  return { has:true, valid: await isActiveCustomer(k.customer, k.issuedAt), customer: k.customer, issuedAt: k.issuedAt };
 }
 
 app.post('/api/analyze', limiter(30, 60000, 'Too many checks in a short time. Please wait a minute and try again.'), async (req,res)=>{
@@ -96,7 +111,7 @@ app.get('/api/plan', limiter(30, 60000), async (req,res)=>{
   if(!team.has) return res.json({ plan:'free', remaining: freeLeft(req), limit: FREE_PER_DAY, portalLogin });
   if(!team.customer) return res.status(401).json({ error:'That access key isn’t valid. Check it was copied in full.', plan:'free', remaining: freeLeft(req), limit: FREE_PER_DAY, portalLogin });
   try{
-    const info = await planInfo(team.customer);
+    const info = await planInfo(team.customer, team.issuedAt);
     res.json({ ...info, active: team.valid, canManage: !!process.env.STRIPE_SECRET_KEY || !!portalLogin, portalLogin });
   }catch(e){ console.error('plan lookup failed:', e.message); res.json({ plan:'team', status:'unknown', active: team.valid, canManage:true, portalLogin }); }
 });
@@ -120,7 +135,7 @@ app.get('/api/welcome', limiter(20, 60000), async (req,res)=>{
   try{
     const s = await stripeGet('checkout/sessions/' + id);
     if(s.status !== 'complete' || !s.customer) return res.json({ ok:false });
-    res.json({ ok:true, key: makeKey(s.customer), name: s.customer_details?.name || '', email: s.customer_details?.email || '' });
+    res.json({ ok:true, key: makeKey(s.customer, s.created ? s.created * 1000 : Date.now()), name: s.customer_details?.name || '', email: s.customer_details?.email || '' });
   }catch(e){ console.error('welcome lookup failed:', e.message); res.json({ ok:false }); }
 });
 
@@ -181,6 +196,17 @@ app.use((err, req, res, next)=>{
   if(status >= 500) console.error(err);
   res.status(status).json({ error: status===413 ? 'Request too large.' : status===400 ? 'Invalid request.' : 'Something went wrong.' });
 });
+// Startup report: the app runs without any of these, but say clearly what is switched off.
+function envReport(){
+  const miss = (k, what) => { if(!process.env[k]) console.warn(`[config] ${k} not set: ${what}`); };
+  miss('ACCESS_KEY_SECRET', 'team access keys are disabled (no keys issued or accepted; everyone gets the free limit).');
+  miss('STRIPE_SECRET_KEY', 'subscriptions cannot be verified; team keys work only during their trial window, /welcome cannot show keys, billing portal falls back to STRIPE_PORTAL_LOGIN_URL.');
+  miss('STRIPE_WEBHOOK_SECRET', 'Stripe webhooks are rejected, so no welcome email or new-trial notice is sent.');
+  miss('RESEND_API_KEY', 'emails are logged instead of sent.');
+  miss('OWNER_EMAIL', 'feedback, reviews and new trials are not emailed to you.');
+  miss('DATA_DIR', 'feedback/reviews are written to ./data, which is wiped on every Render deploy.');
+  miss('OPENAI_API_KEY', 'AI second opinion is off; rule-based checks only.');
+}
 const PORT = process.env.PORT || 3000;
-if(require.main===module) app.listen(PORT, ()=>console.log('ScamSpotter on http://localhost:'+PORT));
-module.exports = app;
+if(require.main===module){ envReport(); app.listen(PORT, ()=>console.log('ScamSpotter on http://localhost:'+PORT)); }
+module.exports = app; module.exports.clientIp = clientIp; module.exports.isCloudflare = isCloudflare;

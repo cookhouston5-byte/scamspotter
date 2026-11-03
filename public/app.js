@@ -43,7 +43,7 @@ const REPORT = `<div class="report"><b>Report it (takes a minute, and it helps s
 <li>Already sent money? Call your bank right away, then report it at <a href="https://www.ic3.gov" rel="noopener" target="_blank">ic3.gov</a>.</li></ul></div>`;
 
 function render(j){ const c = colors[j.verdict];
-  let h = `<div class="verdict"><div class="gauge" style="--p:${j.score};--c:${c}"><div>${j.score}</div></div><div><span class="pill ${j.verdict}">${ICON[j.verdict]} ${j.verdict}</span><h2 style="color:${c};margin-top:6px">${j.verdict==='Scam'?'Likely a scam':j.verdict==='Suspicious'?'Be careful':'No red flags found'}</h2><div class="sub">Risk score ${j.score}/100 · ${j.engine==='heuristic+llm'?'rules + AI':'rule-based check'}</div></div></div>`;
+  let h = `<div class="verdict"><div class="gauge" style="--p:${j.score};--c:${c}"><div>${j.score}</div></div><div><span class="pill ${j.verdict}">${ICON[j.verdict]} ${j.verdict}</span><h2 style="color:${c};margin-top:6px">${j.verdict==='Scam'?'Likely a scam':j.verdict==='Suspicious'?'Be careful':(j.reasons.some(r => r.points > 0)?'Low risk':'No red flags found')}</h2><div class="sub">Risk score ${j.score}/100 · ${j.engine==='heuristic+llm'?'rules + AI':'rule-based check'}</div></div></div>`;
   const rs = j.reasons.filter(r => r.points > 0 || r.severity === 'info');
   h += rs.length ? '<b class="why">Why</b>' + rs.map(r => `<div class="reason"><span class="dot ${r.severity}"></span><div><b>${esc(r.category)}</b><p>${esc(r.detail)}</p></div></div>`).join('') : '<p style="color:var(--muted)">We didn’t find common scam patterns in this message.</p>';
   h += `<div class="advice"><b>What to do:</b> ${esc(j.advice)}</div>`;

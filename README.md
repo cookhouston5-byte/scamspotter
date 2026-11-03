@@ -27,30 +27,48 @@ test/                Engine tests + API tests
 ```bash
 npm install
 npm start                 # http://localhost:3000  (checker at /check)
-npm test                  # engine + API tests
+npm test                  # engine, regression, and API tests
 ```
 
 ## Plans
 - **Free:** `FREE_CHECKS_PER_DAY` (default 5) checks per IP per day, counted in memory.
-- **Team ($29/mo):** unlimited checks. After checkout the customer gets a **team access key** (`SS-cus_….signature`) on `/welcome` and by email.
-  Staff paste it under **Menu → Your plan**. The browser sends it as `X-Team-Key`. The server checks the signature and, if
-  `STRIPE_SECRET_KEY` is set, that the Stripe subscription is active or trialing.
+- **Team ($29/mo):** unlimited checks. After checkout the customer gets a **team access key** (`SS-cus_….<issued>.<signature>`) on `/welcome` and by email.
+  Staff paste it under **Menu → Your plan**. The browser sends it as `X-Team-Key`. The server checks the HMAC signature, then asks Stripe
+  whether the subscription is active, trialing, or past_due (cached 6 hours).
+- **When Stripe can't confirm a key (fail-safe, never "unlimited forever"):**
+  - `STRIPE_SECRET_KEY` not set: a key is honored only for `TRIAL_DAYS` + 1 days (default 15) after it was issued, then falls back to
+    the free limit. The plan menu shows "Free trial" / "Not verified" instead of pretending the plan is active. A warning is logged.
+  - Stripe errors/outage: the last answer Stripe gave for that customer is reused if it's under 3 days old; otherwise the key is honored
+    only inside its trial window. Every failure logs `[access] ERROR …`, and Stripe is retried after 5 minutes.
+  - Older keys without an issue time (`SS-cus_….<signature>`) still verify, but only work when Stripe confirms them.
+- **Free-limit IP:** `CF-Connecting-IP` is used only when the request reached Render from a Cloudflare IP range; otherwise the app uses
+  `req.ip` with `trust proxy` = 1 hop (Render's proxy). So hitting the `onrender.com` URL with a fake header can't reset the limit.
 - **Menu → Your plan** shows the free checks left, or the team plan's status (trial end date, renewal date, payment problems), plus
   **Manage subscription**, which opens the Stripe customer portal (update card, invoices, cancel).
 
 ## Environment variables (set these on Render)
+The app starts and serves the free checker with **none** of these set; on boot it logs a `[config]` line for each missing one.
+
+**Required for paid plans to work**
 | Variable | What it's for |
 |---|---|
-| `ACCESS_KEY_SECRET` | **Required for team keys.** Any long random string. Never change it once customers have keys. |
-| `STRIPE_SECRET_KEY` | Stripe secret key (`sk_live_…`). Shows plan details, opens the billing portal, shows the key on /welcome. |
-| `STRIPE_WEBHOOK_SECRET` | Signing secret (`whsec_…`) of the webhook below. Sends the welcome email. |
-| `STRIPE_PORTAL_LOGIN_URL` | Optional: Stripe's no-code customer portal login link, for customers who lost their key. |
-| `RESEND_API_KEY` | Resend API key, for sending email from hello@scamspotter.app. |
-| `OWNER_EMAIL` | Your own inbox. Gets a copy of every feedback message, review, new trial, and cancellation. |
-| `DATA_DIR` | Folder for feedback/reviews files. Point it at a Render persistent disk, e.g. `/var/data`. |
+| `ACCESS_KEY_SECRET` | Signs team access keys. Any long random string (e.g. `openssl rand -base64 48`). Never change it once customers have keys. Without it no keys are issued or accepted. |
+| `STRIPE_SECRET_KEY` | Stripe secret key (`sk_live_…`, a restricted key with read on Customers/Subscriptions/Checkout Sessions and write on Billing Portal is enough). Verifies subscriptions, shows the key on /welcome, opens the billing portal. Without it keys only work during their trial window. |
+| `STRIPE_WEBHOOK_SECRET` | Signing secret (`whsec_…`) of the webhook below. Without it webhooks are rejected, so no welcome email. |
+| `RESEND_API_KEY` | Resend API key for sending from hello@scamspotter.app. Without it emails are only logged. |
+| `OWNER_EMAIL` | Your inbox. Gets every feedback message, review, new trial, and cancellation. |
+| `DATA_DIR` | Folder for feedback/reviews files. Point it at a Render persistent disk, e.g. `/var/data`; default `./data` is wiped on deploy. |
+
+**Optional**
+| Variable | What it's for |
+|---|---|
+| `OPENAI_API_KEY`, `OPENAI_MODEL` | AI second opinion on top of the rule-based check. |
+| `STRIPE_PORTAL_LOGIN_URL` | Stripe's no-code customer portal login link, for customers who lost their key. |
 | `FREE_CHECKS_PER_DAY` | Free daily limit (default 5). |
+| `TRIAL_DAYS` | Trial length used for the fail-safe window (default 14). |
 | `FEEDBACK_TOKEN` | Lets you read stored feedback at `GET /api/feedback` (add `?type=reviews` for reviews). |
-| `OPENAI_API_KEY`, `OPENAI_MODEL` | Optional AI second opinion. |
+| `EMAIL_FROM`, `EMAIL_REPLY_TO`, `SITE_URL` | Override sender, reply-to, and site URL. |
+| `TRUST_PROXY`, `CLOUDFLARE_IPS` | Override proxy hop count (default 1) or the Cloudflare CIDR list. |
 
 ## Go-live checklist
 1. **Stripe → Payment Link → After payment:** redirect to `https://scamspotter.app/welcome?session_id={CHECKOUT_SESSION_ID}`.
