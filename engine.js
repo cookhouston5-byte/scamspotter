@@ -33,6 +33,17 @@ const RULES = [
     why:'References an attachment type often used for malware or fake login pages (.html, .zip, .exe, .iso, macro documents).' },
   { id:'generic', cat:'Generic greeting', w:5, re: /\b(dear (?:customer|user|client|valued customer|sir|madam|sir\/madam|account holder)|hello (?:customer|user))\b/i,
     why:'Uses a generic greeting instead of your name — mass phishing rarely knows who you are.' },
+  // Text-message (SMS) scams
+  { id:'smsdelivery', cat:'Delivery / toll text scam', w:18, re: /\b(unpaid toll|toll (?:balance|bill|violation|charges?)|outstanding toll|(?:package|parcel|shipment|delivery) (?:is |has been )?(?:on hold|held|suspended|could not be delivered|was not delivered|undeliverable|returned)|could not be delivered|(?:incomplete|invalid|incorrect) (?:shipping |delivery )?address|redelivery|re-?schedule (?:your )?delivery|delivery attempt (?:failed|was unsuccessful))\b/i,
+    why:'Matches the most common scam texts: an unpaid toll, or a package "on hold" until you click a link or pay a small fee. Real carriers and toll agencies rarely text links asking for payment.' },
+  { id:'smslock', cat:'Account or card lock alert', w:15, re: /\b((?:debit |credit |bank )?(?:card|account) (?:has been |is |was )(?:temporarily )?(?:locked|suspended|frozen|restricted|disabled|blocked|on hold))\b/i,
+    why:'Says your card or account is locked. Scammers use this to get you to call them or "verify" details. Check by calling the number on the back of your card.' },
+  { id:'smsreply', cat:'Reply-to-unlock request', w:12, re: /\breply (?:with )?(?:"|')?(?:yes|y|1)(?:"|')? to (?:unlock|verify|approve|authori[sz]e|confirm (?:this|the) (?:transaction|purchase|charge)|cancel|stop (?:the|this) (?:charge|payment|transaction))\b/i,
+    why:'Asks you to reply "YES" to unlock or approve something. Replying confirms your number is active and often leads to a scam phone call.' },
+  { id:'job', cat:'Job / easy money offer', w:25, re: /\b((?:earn|make) \$?\d[\d,]*(?:\s*(?:-|to)\s*\$?\d[\d,]*)? (?:per|a|\/) ?(?:day|hour|week)|part[- ]?time (?:remote|online|from home|home[- ]based) (?:job|work|position)|remote (?:job|position) (?:offer|opportunity)|work from home (?:job|opportunity)|(?:contact|message|reply|add) (?:me |us )?(?:on|via) (?:whatsapp|telegram|signal))\b/i,
+    why:'Offers easy money or a remote job by text, or moves the chat to WhatsApp or Telegram. These are classic task and job scams that end with you paying "fees".' },
+  { id:'wrongnumber', cat:'Wrong-number opener', w:25, re: /\b(is this still your number|is this (?:still )?\w+'?s number\?|sorry,? (?:i think )?(?:i have|i've got|i got|this is)? ?(?:the )?wrong number|did you get my (?:last )?message)\b/i,
+    why:'A friendly "wrong number" or "is this still your number?" text from a stranger is how many investment and romance scams start. Don\'t reply.' },
   { id:'qr', cat:'QR code lure', w:12, re: /\b(scan (?:the|this) qr|qr code)\b/i,
     why:'Asks you to scan a QR code — "quishing" hides malicious links from email filters.' },
 ];
@@ -66,13 +77,15 @@ function parseSender(s){
   return { name, email, domain: dom };
 }
 
-function analyze({ text = '', sender = '', subject = '' } = {}){
+function analyze({ text = '', sender = '', subject = '', source = '' } = {}){
   const body = String(text||''); const subj = String(subject||'');
   const all = subj + '\n' + body;
   const reasons = []; let score = 0;
   const add = (cat, pts, why, sev) => { reasons.push({ category:cat, points:pts, detail:why, severity: sev || (pts>=20?'high':pts>=10?'medium':'low') }); score += pts; };
 
-  for(const r of RULES){ const m = all.match(r.re); if(m) add(r.cat, r.w, r.why + ` (matched: "${m[0].trim()}")`); }
+  // Match rules on single-spaced text, so phrases split across lines (wrapped texts, screenshots) still count.
+  const flat = all.replace(/\s+/g, ' ');
+  for(const r of RULES){ const m = flat.match(r.re); if(m) add(r.cat, r.w, r.why + ` (matched: "${m[0].trim()}")`); }
 
   // Sender analysis
   const s = parseSender(sender);
@@ -115,8 +128,8 @@ function analyze({ text = '', sender = '', subject = '' } = {}){
     }
   }
   // phone number + call to action (tech support/callback phishing)
-  if(/(\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}/.test(body) && /\b(call|contact|dial)\b/i.test(body) && /\b(cancel|refund|renew|charged|dispute|infected|support)\b/i.test(all))
-    add('Callback scam pattern', 15, 'Gives a phone number to "cancel", "dispute", or get "support". Callback scams use these numbers to get remote access or payments. Look up the company\'s number yourself.');
+  if(/(\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}/.test(body) && /\b(call|contact|dial)\b/i.test(body) && /\b(cancel|refund|renew|charged|dispute|infected|support|unlock|locked|suspended|fraud(?:ulent)?|suspicious)\b/i.test(all))
+    add('Callback scam pattern', 15, 'Gives a phone number to call about a charge, a refund, a locked account, or "support". Callback scams use these numbers to get remote access, codes, or payments. Look up the company\'s real number yourself.');
 
   // Combos
   const has = id => reasons.some(r=>r.category===id);
@@ -124,6 +137,10 @@ function analyze({ text = '', sender = '', subject = '' } = {}){
   if(has('Payment / bank change') && (has('Invoice / payment demand')||has('Urgency pressure'))) add('Combination: invoice redirection', 12, 'A bank-detail change paired with an invoice or deadline matches vendor-impersonation invoice fraud.');
 
   if((has('Lookalike link')||has('Raw IP link')||has('Disguised characters in link')) && (has('Urgency pressure')||has('Credential request')||has('Threats / consequences'))) add('Combination: deceptive link + pressure', 10, 'A disguised link combined with pressure to act is the standard phishing recipe.');
+  if(has('Risky link domain') && (has('Urgency pressure')||has('Threats / consequences'))) add('Combination: risky link + pressure', 10, 'A link to a high-risk domain combined with a deadline or threat is a common phishing pattern.');
+  if(has('Delivery / toll text scam') && urls.length) add('Combination: text scam + link', 15, 'A delivery or toll message that asks you to tap a link is the standard "smishing" scam. Go to the carrier or toll agency\'s website yourself instead.');
+  if(has('Account or card lock alert') && (has('Reply-to-unlock request')||has('Callback scam pattern')||urls.length)) add('Combination: lock alert + action', 10, 'A "card locked" alert that asks you to reply, call a number in the text, or tap a link is a common bank-impersonation scam.');
+  if(source === 'screenshot') reasons.push({ category:'Read from a screenshot', points:0, detail:'This text was read from an image, so a letter or two may be off. Check the message text above, and look closely at any links before trusting this result.', severity:'info' });
   if(body.trim().length < 15) reasons.push({ category:'Very little text', points:0, detail:'There isn\'t much to analyze. Paste the full message, including the sender and subject, for a better result.', severity:'info' });
 
   score = Math.max(0, Math.min(100, Math.round(score)));

@@ -116,7 +116,11 @@ function build(){
    <p style="font-size:12.5px;margin:0">Reviews are read by Houston before they’re posted.</p></form></details></div></details>
  <details class="dsec" id="m-help"><summary>${I.help}Help</summary><div class="in">
   <p><b style="color:var(--ink)">How to check a message</b></p>
-  <ol class="helplist"><li>Copy the whole email or text.</li><li>Paste it into the <a href="/check">checker</a>. Add the sender and subject if you have them.</li><li>Read the reasons, then follow “What to do”.</li></ol>
+  <ol class="helplist"><li>Copy the text, email, or link, or take a screenshot of it.</li><li>Paste it into the <a href="/check">checker</a>, or tap <b>Upload a screenshot</b>.</li><li>Read the reasons, then follow “What to do”.</li></ol>
+  <p style="margin-top:12px"><b style="color:var(--ink)">Put ScamSpotter on your phone</b></p>
+  <div id="install-box"></div>
+  <ul class="helplist"><li><b>iPhone:</b> open scamspotter.app in Safari, tap Share, then “Add to Home Screen”.</li>
+  <li><b>Android:</b> open it in Chrome, tap ⋮ then “Install app” or “Add to Home screen”. Then you can share a text or screenshot straight to ScamSpotter from the Share menu.</li></ul>
   <p style="margin-top:12px"><b style="color:var(--ink)">Already clicked, paid, or replied?</b></p>
   <ul class="helplist"><li>Money sent: call your bank right away and ask them to stop or recall it. Then report it at <a href="https://www.ic3.gov" rel="noopener">ic3.gov</a>.</li>
   <li>Entered a password: change it now, and turn on two-step login.</li><li>Report the scam at <a href="https://reportfraud.ftc.gov" rel="noopener">reportfraud.ftc.gov</a>.</li>
@@ -149,8 +153,34 @@ function build(){
       if(!r.ok) throw new Error(j.error || 'Couldn’t send. Please try again.'); rv.reset(); m.className = 'formmsg ok'; m.textContent = 'Thank you! Houston will read it soon.'; }
     catch(err){ m.className = 'formmsg err'; m.textContent = err.message; } finally { b.disabled = false; } });
   const q = new URLSearchParams(location.search).get('menu'); if(q) open(q);
+  renderInstall();
 }
-if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', build); else build();
+
+// ---- install as an app (home screen + Share menu) ----
+let installEvt = null;
+const standalone = () => (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; renderInstall(); });
+window.addEventListener('appinstalled', () => { installEvt = null; renderInstall(); });
+function renderInstall(){
+  const box = document.getElementById('install-box'); if(!box) return;
+  if(standalone()){ box.innerHTML = '<p style="color:var(--safe)">ScamSpotter is installed on this device.</p>'; return; }
+  box.innerHTML = installEvt ? '<button class="btn sm" type="button" id="install-btn" style="margin-bottom:8px">Install ScamSpotter</button>' : '';
+  const b = document.getElementById('install-btn');
+  if(b) b.onclick = async () => { installEvt.prompt(); try{ await installEvt.userChoice; }catch(e){} installEvt = null; renderInstall(); };
+}
+// One-time tip on phones, on the checker page only.
+function installTip(){
+  const app = document.querySelector('.app'); if(!app || standalone() || store.get('ss-tip-done')) return;
+  if(!/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) return;
+  const ios = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const w = document.createElement('div'); w.className = 'wrap'; w.style.paddingTop = '18px'; const t = document.createElement('div'); t.className = 'install-tip'; t.setAttribute('role','note'); w.appendChild(t);
+  t.innerHTML = `<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="6.5" y="2.5" width="11" height="19" rx="2"/><path d="M10.5 18.5h3"/></svg><div><b>Tip:</b> add ScamSpotter to your home screen${ios ? ' (Share → Add to Home Screen)' : ''} to check texts and screenshots in one tap. <button class="linkbtn" type="button" data-menu="help">How</button></div><button class="x2" type="button" aria-label="Dismiss tip">×</button>`;
+  t.querySelector('.x2').onclick = () => { store.set('ss-tip-done','1'); w.remove(); };
+  app.parentNode.insertBefore(w, app);
+}
+if('serviceWorker' in navigator && location.protocol !== 'file:') window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js').catch(() => {}); });
+const boot = () => { build(); installTip(); };
+if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
 
 window.SS = { getKey, headers, refreshPlan, updateQuota, onPlan: f => listeners.push(f), setKey: k => { store.set('ss-team-key', k); refreshPlan(); }, trialUrl: STRIPE_TRIAL };
 })();

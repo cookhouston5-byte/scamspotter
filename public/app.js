@@ -8,11 +8,13 @@ const ICON = { Scam: sv('<path d="M10.3 4.2 2.8 17.5A2 2 0 0 0 4.5 20.5h15a2 2 0
   flag: sv('<circle cx="12" cy="12" r="6"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/>') };
 const colors = { Scam:'var(--bad)', Suspicious:'var(--warn)', Safe:'var(--safe)' };
 const goLabel = $('go').querySelector('span');
+let source = ''; // 'screenshot' when the message text came from an image
+$('text').addEventListener('input', () => { if(!$('text').value.trim()) source = ''; });
 
 const box = document.querySelector('.samples');
 [...SAMPLES, LEGIT_SAMPLE].forEach(s => { const b = document.createElement('button'); b.type = 'button'; const legit = s.expect === 'Safe';
   b.className = legit ? 's-safe' : 's-scam'; b.innerHTML = (legit ? ICON.Safe : ICON.flag) + esc(s.label.replace('Example scam: ','').replace('Example: ',''));
-  b.dataset.id = s.id; b.onclick = () => { $('sender').value = s.sender; $('subject').value = s.subject; $('text').value = s.text; run(); }; box.appendChild(b); });
+  b.dataset.id = s.id; b.onclick = () => { source = ''; $('ocr-status').textContent = ''; $('sender').value = s.sender; $('subject').value = s.subject; $('text').value = s.text; run(); }; box.appendChild(b); });
 
 function showQuota(p){ if(!p) return; const q = $('quota');
   if(p.plan === 'team' && p.httpStatus !== 401) q.textContent = 'Team plan · unlimited checks';
@@ -22,7 +24,7 @@ SS.onPlan(showQuota); SS.refreshPlan();
 async function run(e){ e && e.preventDefault(); const out = $('out'); if(!$('text').value.trim()){ $('text').focus(); return; }
   $('go').disabled = true; goLabel.textContent = 'Checking…'; out.innerHTML = '<div class="empty">' + ICON.flag.replace('class="i"','class="i spin"') + 'Scanning…</div>';
   try{
-    const r = await fetch('/api/analyze', { method:'POST', headers: SS.headers({ 'Content-Type':'application/json' }), body: JSON.stringify({ text: $('text').value, sender: $('sender').value, subject: $('subject').value }) });
+    const r = await fetch('/api/analyze', { method:'POST', headers: SS.headers({ 'Content-Type':'application/json' }), body: JSON.stringify({ text: $('text').value, sender: $('sender').value, subject: $('subject').value, source }) });
     const j = await r.json();
     if(r.status === 402){ SS.updateQuota(j.plan); out.innerHTML = limitHtml(j); return; }
     if(!r.ok) throw new Error(j.error); SS.updateQuota(j.plan); render(j);
@@ -59,3 +61,35 @@ if(new URLSearchParams(location.search).get('from') === 'home'){
   try{ const last = JSON.parse(sessionStorage.getItem('ss-last') || 'null');
     if(last){ $('sender').value = last.input.sender || ''; $('subject').value = last.input.subject || ''; $('text').value = last.input.text || ''; render(last.result); } }catch(e){}
 }
+
+// ---- Screenshots: read on this device, then checked like pasted text ----
+const st = $('ocr-status'), shotBtn = $('shot-btn');
+async function fromImage(file){
+  st.className = 'ocr-status'; shotBtn.disabled = true;
+  try{
+    const text = await SSOCR.read(file, msg => { st.textContent = msg; });
+    $('text').value = text; $('sender').value = ''; $('subject').value = ''; source = 'screenshot';
+    st.className = 'ocr-status ok'; st.textContent = 'Text read from your screenshot. Fix anything that looks off and check again.';
+    run();
+  }catch(err){ st.className = 'ocr-status err'; st.textContent = err.message; }
+  finally{ shotBtn.disabled = false; $('shot').value = ''; }
+}
+shotBtn.addEventListener('click', () => $('shot').click());
+$('shot').addEventListener('change', e => { const f = e.target.files[0]; if(f) fromImage(f); });
+SSOCR.attach($('f'), fromImage);
+
+// ---- Shared from the phone's Share menu (see sw.js) ----
+(async () => {
+  const q = new URLSearchParams(location.search);
+  if(q.get('shared') === '0'){ st.className = 'ocr-status err'; st.textContent = 'Sharing didn’t finish. Open ScamSpotter from your home screen once, then try sharing again.'; return; }
+  if(q.get('shared') !== '1' || !('caches' in window)) return;
+  history.replaceState(null, '', '/check');
+  try{
+    const c = await caches.open('ss-share');
+    const [img, txt] = await Promise.all([c.match('/shared/image'), c.match('/shared/text')]);
+    await Promise.all([c.delete('/shared/image'), c.delete('/shared/text')]);
+    if(img){ const blob = await img.blob(); return fromImage(new File([blob], 'shared', { type: blob.type || 'image/png' })); }
+    const text = txt ? (await txt.text()).trim() : '';
+    if(text){ $('text').value = text; source = ''; run(); }
+  }catch(e){ st.className = 'ocr-status err'; st.textContent = 'Couldn’t open what you shared. Try uploading the screenshot instead.'; }
+})();

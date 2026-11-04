@@ -2,7 +2,9 @@
 (function(){
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const form = $('hs'), ta = $('hs-text'), out = $('hs-out'), go = $('hs-go'), quota = $('hs-quota');
+const form = $('hs'), ta = $('hs-text'), out = $('hs-out'), go = $('hs-go'), quota = $('hs-quota'), status = $('hs-status');
+let source = '';
+ta.addEventListener('input', () => { if(!ta.value.trim()) source = ''; });
 
 function showQuota(p){ if(!p) return;
   if(p.plan === 'team' && p.httpStatus !== 401) quota.textContent = 'Team plan · unlimited';
@@ -12,7 +14,7 @@ if(window.SS){ SS.onPlan(showQuota); SS.refreshPlan(); }
 document.querySelector('[data-focus-scan]').addEventListener('click', e => { e.preventDefault(); $('scan').scrollIntoView({ behavior:'smooth', block:'center' }); setTimeout(() => ta.focus({ preventScroll:true }), 350); });
 let si = 0;
 $('hs-sample').addEventListener('click', () => { const s = SAMPLES[si++ % SAMPLES.length];
-  ta.value = `From: ${s.sender}\nSubject: ${s.subject}\n\n${s.text}`; ta.focus(); });
+  source = ''; status.textContent = ''; ta.value = (s.sender ? `From: ${s.sender}\n` : '') + (s.subject ? `Subject: ${s.subject}\n` : '') + (s.sender || s.subject ? '\n' : '') + s.text; ta.focus(); });
 
 // Pull "From:" and "Subject:" lines out of a pasted email so the sender checks can run.
 function split(raw){
@@ -26,7 +28,7 @@ function split(raw){
 
 form.addEventListener('submit', async e => {
   e.preventDefault(); const raw = ta.value.trim(); if(!raw){ ta.focus(); return; }
-  const input = split(raw); if(!input.text) input.text = raw;
+  const input = split(raw); if(!input.text) input.text = raw; input.source = source;
   go.disabled = true; go.lastChild.textContent = 'Scanning…'; out.innerHTML = '';
   try{
     const r = await fetch('/api/analyze', { method:'POST', headers: SS.headers({ 'Content-Type':'application/json' }), body: JSON.stringify(input) });
@@ -42,6 +44,17 @@ form.addEventListener('submit', async e => {
   }catch(err){ out.innerHTML = `<div class="mini"><p style="margin:0;color:var(--bad)">${esc(err.message)}</p></div>`; }
   finally{ go.disabled = false; go.lastChild.textContent = 'Check it'; }
 });
+
+// Screenshot: read on this device, then checked
+async function fromImage(file){
+  const b = $('hs-shot'); b.disabled = true; status.style.color = '';
+  try{ const text = await SSOCR.read(file, m => { status.textContent = m; });
+    ta.value = text; source = 'screenshot'; status.textContent = 'Read from your screenshot. Never uploaded.'; form.requestSubmit(); }
+  catch(err){ status.style.color = 'var(--bad)'; status.textContent = err.message; }
+  finally{ b.disabled = false; $('hs-file').value = ''; } }
+$('hs-shot').addEventListener('click', () => $('hs-file').click());
+$('hs-file').addEventListener('change', e => { const f = e.target.files[0]; if(f) fromImage(f); });
+SSOCR.attach(form, fromImage);
 
 // Feedback form
 const fb = $('fb'), fm = $('fb-msg'), fo = $('fb-msgout'), fc = $('fb-count');

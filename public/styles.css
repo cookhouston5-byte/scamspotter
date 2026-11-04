@@ -204,3 +204,15 @@ body.menu-open .scrim{opacity:1;pointer-events:auto}body.menu-open .drawer{trans
 .drawer[hidden]{display:none}
 @media (max-width:420px){.nav .wrap{gap:8px}.nav-links{gap:6px}.nav .btn.sm{padding:7px 11px;font-size:13px}.logo{font-size:16px;gap:8px}.logo img{width:24px;height:24px}}
 @media (max-width:359px){.nav .btn.sm{display:none}}
+/* screenshots */
+.shot{border:1.5px dashed var(--line2);border-radius:var(--r-sm);padding:14px;text-align:center;transition:border-color .15s,background .15s;margin-bottom:6px}
+form.drag .shot,.scanner.drag,.shot.drag{border-color:var(--accent);background:var(--accent-soft)}
+.shot .btn{box-shadow:none}.shot .hint{font-size:13px;color:var(--dim);margin:8px 0 0}
+.ocr-status{font-size:13.5px;margin:6px 0 0;min-height:0;color:var(--muted)}.ocr-status:empty{display:none}.ocr-status.ok{color:var(--safe)}.ocr-status.err{color:var(--bad)}
+.or{display:flex;align-items:center;gap:10px;color:var(--dim);font-size:12.5px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.06em;margin:14px 0}
+.or:before,.or:after{content:"";flex:1;height:1px;background:var(--line)}
+.scanner .row .btn.ghost{flex:0 0 auto}
+form.drag.scanner{border-color:var(--accent)}
+.install-tip{display:flex;gap:10px;align-items:flex-start;background:var(--surface2);border:1px solid var(--line);border-radius:var(--r-sm);padding:12px 14px;font-size:14px;color:var(--muted);margin-bottom:14px}
+.install-tip svg.i{color:var(--accent);margin-top:2px}.install-tip b{color:var(--ink)}.install-tip .x2{margin-left:auto;background:none;border:0;color:var(--dim);cursor:pointer;font-size:18px;line-height:1;padding:0 2px}
+.install-tip{margin-bottom:0}

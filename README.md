@@ -1,6 +1,6 @@
 # ScamSpotter
 
-An AI scam checker for small businesses, live at https://scamspotter.app. Staff paste a suspicious email or text and get a **verdict (Safe / Suspicious / Scam)**, a **0–100 risk score**, and **plain-English reasons**.
+An AI scam checker for small businesses, live at https://scamspotter.app. Staff paste a suspicious text, email, or link, or upload a screenshot, and get a **verdict (Safe / Suspicious / Scam)**, a **0–100 risk score**, and **plain-English reasons**.
 
 Founder: Houston Cook, Anchorage, Alaska.
 
@@ -29,6 +29,16 @@ npm install
 npm start                 # http://localhost:3000  (checker at /check)
 npm test                  # engine + API tests
 ```
+
+## Screenshots and phone sharing
+- **Upload a screenshot** (checker and homepage): the image is read *on the user's device* by Tesseract OCR, served from
+  `public/vendor/tesseract/` (tesseract.js 5.1.1, Apache-2.0, English data). The image never leaves the device; only the
+  recognized text is sent to `/api/analyze` with `source: "screenshot"`. Drag-and-drop and pasting an image also work.
+- **Install + Share menu:** `manifest.webmanifest` + `sw.js` make the site installable ("Add to Home Screen"). On Android,
+  ScamSpotter then appears in the Share menu; `sw.js` receives the shared text/image, holds it in the browser cache only until
+  `/check?shared=1` reads it, then deletes it. (iPhone doesn't support web share targets; iPhone users upload the screenshot.)
+- Text-message rules in `engine.js`: toll/delivery texts, card/account lock alerts, "reply YES to unlock", job/easy-money
+  offers, and "wrong number" openers.
 
 ## Plans
 - **Free:** `FREE_CHECKS_PER_DAY` (default 5) checks per IP per day, counted in memory.
@@ -96,7 +106,8 @@ With an LLM, the final score is the average of the two scores, and it can never 
 5. Add a shared team history. Retain or delete message bodies according to a published privacy policy.
 
 ## Known limitations
-- Heuristics are pattern-based and English-only. They can miss novel or well-written scams and can flag legit messages that discuss payments urgently. A result is guidance, not a guarantee.
+- Heuristics and screenshot reading are English-only. Screenshot text can contain small reading errors (e.g. l vs 1).
+- Heuristics are pattern-based. They can miss novel or well-written scams and can flag legit messages that discuss payments urgently. A result is guidance, not a guarantee.
 - Pasted text has no email headers, so real SPF/DKIM spoof checks aren't possible yet.
 - Links aren't fetched or checked against threat-intel feeds (e.g. Google Safe Browsing).
 - No individual accounts: a whole team shares one access key.

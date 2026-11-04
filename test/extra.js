@@ -14,4 +14,15 @@ c({sender:'Chase Smith <chase@smithlawak.com>',subject:'Monday',text:'See you Mo
 c({sender:'Chase Bank Alerts <alerts@secure-mail-center.net>',subject:'Account locked',text:'Your account is locked. Verify your identity at https://chase-verify.top/login immediately.'},'Scam');
 c({sender:'UPS Delivery <alerts@track-pkg.net>',subject:'Parcel on hold',text:'Your account is on hold. Pay the redelivery fee urgently at https://ups-redelivery.top/pay'},'Scam');
 c({text:'Your Chase account is locked. Visit chase-alerts.com now to verify your identity.'},'Scam');
+// Text-message scams and normal texts
+c({text:'USPS: Your package could not be delivered due to an incomplete address. Confirm your address here: https://usps.parcel-redeliver.com/a8'},'Scam');
+c({text:'BANK ALERT: Your debit card has been temporarily locked due to suspicious activity. Reply YES to unlock or call 907-555-0199.'},'Suspicious');
+c({text:'Hi! I am a recruiter from Amazon. Part time remote job, earn $300-$800 per day. Reply on WhatsApp +1 555 201 4455'},'Suspicious');
+c({text:'Hi Linda, is this still your number? We met at the golf club last week.'},'Suspicious');
+c({text:'Reminder: your dental cleaning is tomorrow at 9:00 AM. Reply C to confirm or call 907-555-0110 to reschedule.'},'Safe');
+c({text:'Your Chase verification code is 482913. Do not share this code with anyone. We will never call you to ask for it.'},'Safe');
+c({text:'FedEx: Your package was delivered today at 2:14 PM. Track at https://www.fedex.com/fedextrack'},'Safe');
+c({text:'Wells Fargo: Did you attempt a $52.10 purchase at Target? Reply YES or NO. Reply STOP to opt out.'},'Safe');
+c({text:'Hey, my cousin is hiring for a part-time job at the cafe if you know anyone.'},'Safe');
+{ const r = analyze({ text:'Running 10 min late, sorry!', source:'screenshot' }); assert.ok(r.reasons.some(x => x.category === 'Read from a screenshot')); console.log('PASS  screenshot note added'); }
 console.log('Extra tests passed');

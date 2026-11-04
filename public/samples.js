@@ -12,6 +12,9 @@ const SAMPLES = [
   { id:'techsupport', label:'Example scam: Fake subscription renewal', expect:'Scam',
     sender:'"Geek Squad Billing" <gs.renewals.dept@outlook.com>', subject:'Your subscription has been renewed - $499.99',
     text:`Dear Customer,\n\nThank you for your purchase. Your Geek Squad Total Protection subscription has been renewed and $499.99 will be charged to your account today.\n\nIf you did not authorize this charge, call our refund department immediately at +1 (808) 555-0143 within 24 hours to cancel. A technician will connect via AnyDesk to process your refund.` },
+  { id:'sms', label:'Example scam: Unpaid toll text', expect:'Scam',
+    sender:'+1 (209) 555-0182', subject:'',
+    text:`Toll Services: Our records show an unpaid toll balance of $4.15 on your vehicle. Pay within 24 hours to avoid a $50 late fee and suspension of your license: https://ezdrive-toll-pay.top/pay` },
 ];
 const LEGIT_SAMPLE = { id:'legit', label:'Example: Normal business email', expect:'Safe',
   sender:'"Maria Lopez" <maria@harborviewcatering.com>', subject:'Menu for Friday lunch',

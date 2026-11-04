@@ -1,13 +1,13 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Check a message — ScamSpotter</title>
-<meta name="description" content="Free scam checker: paste a suspicious email or text message and see if it’s Safe, Suspicious, or a Scam, with the reasons in plain English.">
+<meta name="description" content="Free scam checker: paste a suspicious text, email, or link, or upload a screenshot, and see if it’s Safe, Suspicious, or a Scam, with the reasons in plain English.">
 <link rel="canonical" href="https://scamspotter.app/check">
 <meta property="og:type" content="website"><meta property="og:site_name" content="ScamSpotter"><meta property="og:url" content="https://scamspotter.app/check">
-<meta property="og:title" content="Check a message — ScamSpotter"><meta property="og:description" content="Free scam checker: paste a suspicious email or text message and see if it’s Safe, Suspicious, or a Scam, with the reasons in plain English.">
+<meta property="og:title" content="Check a message — ScamSpotter"><meta property="og:description" content="Free scam checker: paste a suspicious text, email, or link, or upload a screenshot, and see if it’s Safe, Suspicious, or a Scam, with the reasons in plain English.">
 <meta property="og:image" content="https://scamspotter.app/og.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#fbf7f1">
 <script>try{var t=localStorage.getItem('ss-theme');if(t==='dark'||(t==='auto'&&matchMedia('(prefers-color-scheme: dark)').matches))document.documentElement.dataset.theme='dark'}catch(e){}</script>
-<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg"><link rel="apple-touch-icon" href="/icons/apple-touch-icon.png"><link rel="manifest" href="/manifest.webmanifest"><meta name="apple-mobile-web-app-title" content="ScamSpotter">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500;1,9..144,600&family=Inter:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="/styles.css">
@@ -26,6 +26,7 @@
 <symbol id="i-chat" viewBox="0 0 24 24"><path d="M5 5.5h14a1.5 1.5 0 0 1 1.5 1.5v8.5A1.5 1.5 0 0 1 19 17h-7l-4.5 3.5V17H5a1.5 1.5 0 0 1-1.5-1.5V7A1.5 1.5 0 0 1 5 5.5Z"/><path d="M8 10h8M8 13h5"/></symbol>
 <symbol id="i-mountain" viewBox="0 0 24 24"><path d="M2.5 19.5 9 8l4 7 2.5-4 6 8.5Z"/><path d="m7.3 11 1.7 1.5 1.6-1.4"/></symbol>
 <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5.5" width="18" height="13" rx="2"/><path d="m3.5 7 8.5 6 8.5-6"/></symbol>
+<symbol id="i-camera" viewBox="0 0 24 24"><path d="M4.5 7.5h3l1.5-2.5h6l1.5 2.5h3A1.5 1.5 0 0 1 21 9v9.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5V9a1.5 1.5 0 0 1 1.5-1.5Z"/><circle cx="12" cy="13.3" r="3.6"/></symbol>
 <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
 <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
 </defs></svg>
@@ -34,13 +35,16 @@
 <a class="btn sm" href="/check">Check a message</a>
 <button class="menu-btn" type="button" data-menu aria-controls="menu"><span class="lbl">Menu</span><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button></nav></div></header>
 <main>
-<div class="app-h"><div class="wrap"><span class="tag">Checker</span><h1>Check a suspicious message</h1><p>Paste an email or text. Add the sender and subject if you have them.</p></div></div>
+<div class="app-h"><div class="wrap"><span class="tag">Checker</span><h1>Check a suspicious message</h1><p>Paste a text, email, or chat message, or upload a screenshot of it.</p></div></div>
 <div class="wrap app">
 <form class="panel" id="f">
+<div class="shot" id="drop"><button class="btn ghost block" type="button" id="shot-btn"><svg class="i"><use href="#i-camera"/></svg>Upload a screenshot</button><input type="file" id="shot" accept="image/*" hidden>
+<p class="hint">Text messages, WhatsApp, Facebook, email, pop-ups. Read on your device, never uploaded.</p><p class="ocr-status" id="ocr-status" role="status"></p></div>
+<div class="or"><span>or paste it below</span></div>
 <div class="samples"><span class="lbl">Try an example (all fictional):</span></div>
-<div class="row2"><div class="field"><label for="sender">Sender (optional)</label><input id="sender" placeholder='"Name" &lt;name@example.com&gt; or phone'></div>
+<div class="row2"><div class="field"><label for="sender">From (optional)</label><input id="sender" placeholder='Email address or phone number'></div>
 <div class="field"><label for="subject">Subject (optional)</label><input id="subject" placeholder="Subject line"></div></div>
-<div class="field"><label for="text">Message</label><textarea id="text" placeholder="Paste the full email or text message here…" required></textarea></div>
+<div class="field"><label for="text">Message</label><textarea id="text" placeholder="Paste the full text message, email, or link here…" required></textarea></div>
 <button class="btn block" id="go" type="submit"><svg class="i"><use href="#i-reticle"/></svg><span>Check message</span></button>
 <div class="quota-line"><span id="quota" aria-live="polite"></span><button class="linkbtn" type="button" data-menu="plan">Your plan</button></div>
 <p class="disclaimer">Don’t paste passwords or full card numbers. Results are guidance, not a guarantee; verify money requests by phone using a number you already trust.</p>
@@ -49,5 +53,5 @@
 </div></main>
 <footer><div class="wrap"><div class="f-logo"><img src="/logo.svg" alt="" width="18" height="18">© 2026 ScamSpotter · Anchorage, Alaska</div>
 <nav aria-label="Footer"><a href="/check">Checker</a><a href="/about">About</a><a href="/#pricing">Pricing</a><a href="#" data-menu="help">Help</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="mailto:hello@scamspotter.app">hello@scamspotter.app</a></nav></div></footer>
-<script src="/samples.js" defer></script><script src="/app.js" defer></script>
+<script src="/samples.js" defer></script><script src="/ocr.js" defer></script><script src="/app.js" defer></script>
 </body></html>

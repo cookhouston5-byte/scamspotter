@@ -47,6 +47,10 @@ app.post('/api/stripe/webhook', express.raw({ type:'*/*', limit:'1mb' }), async 
 
 app.use(express.json({ limit:'200kb' }));
 app.get('/subscribed', (req,res)=>res.redirect(302, '/welcome'));
+// Shares are normally handled on the phone by sw.js. If one reaches the server, ignore the upload and send the user to the checker.
+app.post('/share-target', (req,res)=>{ req.resume(); res.redirect(303, '/check?shared=0'); });
+app.get('/sw.js', (req,res,next)=>{ res.set('Cache-Control','no-cache'); next(); });
+app.use('/vendor', express.static(path.join(__dirname,'public','vendor'), { maxAge:'30d', immutable:true }));
 app.use(express.static(path.join(__dirname,'public'), { extensions:['html'] }));
 
 app.get('/api/health', (req,res)=>res.json({ ok:true, llm: !!process.env.OPENAI_API_KEY }));
@@ -63,7 +67,7 @@ async function teamFromReq(req){
 }
 
 app.post('/api/analyze', limiter(30, 60000, 'Too many checks in a short time. Please wait a minute and try again.'), async (req,res)=>{
-  const { text='', sender='', subject='' } = req.body||{};
+  const { text='', sender='', subject='' } = req.body||{}; const source = req.body?.source === 'screenshot' ? 'screenshot' : '';
   if(!String(text).trim()) return res.status(400).json({ error:'Paste the message text to check.' });
   if(String(text).length > 50000) return res.status(413).json({ error:'Message too long (50,000 characters max).' });
   const team = await teamFromReq(req);
@@ -76,7 +80,7 @@ app.post('/api/analyze', limiter(30, 60000, 'Too many checks in a short time. Pl
     if(freeUse.size > 50000){ const d = '|' + today(); for(const x of freeUse.keys()) if(!x.endsWith(d)) freeUse.delete(x); }
     plan = { type:'free', remaining: left - 1, limit: FREE_PER_DAY, badKey: team.has };
   }
-  const h = analyze({ text, sender, subject });
+  const h = analyze({ text, sender, subject, source });
   const llm = await llmAnalyze({ text, sender, subject }, h);
   let result = { ...h, llm, plan };
   if(llm && !llm.error && llm.verdict){
