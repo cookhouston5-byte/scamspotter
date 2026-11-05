@@ -48,6 +48,44 @@ const RULES = [
     why:'Asks you to scan a QR code — "quishing" hides malicious links from email filters.' },
 ];
 
+// Spanish versions of the same patterns. Text is matched without accents, so "contraseña" is written "contrasena" here.
+// They share category names with the English rules, so a message is never scored twice for the same thing.
+const es = (id, cat, w, words, why) => ({ id: id + '-es', cat, w, re: new RegExp('\\b(' + words.join('|') + ')\\b', 'i'), why: why + ' (Spanish)' });
+RULES.push(
+  es('urgency','Urgency pressure',12,['urgente','inmediatamente','de inmediato','en las proximas (?:24|48) horas','dentro de (?:24|48) horas','hoy mismo','ultimo aviso','aviso final','actue ahora','su cuenta (?:sera|ha sido|esta) (?:suspendida|cerrada|cancelada|desactivada)'],
+    'Creates time pressure ("urgente", "inmediatamente", "último aviso"). Scammers rush people so they skip verification.'),
+  es('secrecy','Secrecy request',14,['no (?:se lo |le )?digas a nadie','no le diga a nadie','mantenlo en secreto','es confidencial','estoy en una reunion','no puedo hablar(?: ahora)?'],
+    'Asks for secrecy or says the sender can\'t talk — classic boss impersonation.'),
+  es('giftcard','Gift card request',30,['tarjetas? de regalo','tarjetas? (?:de )?(?:google play|itunes|apple|amazon|steam)','raspa(?:r)? (?:la parte de atras|el codigo)','(?:enviame|mandame|envia|manda) (?:las )?fotos? de (?:las )?tarjetas?','codigos? de (?:las )?tarjetas?'],
+    'Mentions buying gift cards or sending card codes. Legitimate businesses never ask to be paid in gift cards.'),
+  es('paychange','Payment / bank change',30,['(?:nuevos|nuevas?) (?:datos|informacion|cuenta) bancari[oa]s?','cambi(?:o|amos|ado) (?:de |nuestra |nuestros |la |los )?(?:cuenta|banco|datos bancarios)','actualiza(?:r|mos)? (?:sus |los |nuestros )?datos bancarios','deposito directo'],
+    'Requests a change to bank or direct-deposit details. Always confirm by phone using a number you already have.'),
+  es('wire','Wire / unusual payment',14,['transferencia (?:bancaria|electronica)','bitcoin','criptomonedas?','western union','moneygram','zelle'],
+    'Asks for a wire, crypto, or money-transfer payment — methods that are hard or impossible to reverse.'),
+  es('invoice','Invoice / payment demand',10,['factura (?:vencida|pendiente|atrasada)','pago (?:vencido|pendiente|atrasado)','saldo pendiente'],
+    'Pushes an overdue invoice or payment. Check that it matches your records.'),
+  es('credentials','Credential request',20,['verifi(?:que|ca|car) su (?:cuenta|identidad|contrasena|informacion)','confirm(?:e|a|ar) su (?:contrasena|cuenta|identidad|informacion)','ingres(?:e|a) su contrasena','actualice su (?:informacion|metodo de pago|contrasena)','inicio de sesion (?:inusual|sospechoso)','actividad (?:inusual|sospechosa)'],
+    'Asks you to log in, verify, or "confirm" your account — the core move of phishing.'),
+  es('sensitive','Sensitive data request',18,['(?:numero de )?seguro social','codigo de (?:verificacion|seguridad)','numero de (?:la )?tarjeta','clave (?:de acceso|bancaria)'],
+    'Asks for sensitive information (Social Security number, codes, card numbers). Never send these by text or email.'),
+  es('prize','Too good to be true',14,['(?:usted )?(?:ha|has) ganado','ganador','felicidades,? (?:usted|has|ha)','reclam(?:e|a) su (?:premio|reembolso)','loteria','herencia'],
+    'Promises a prize, refund, or windfall — a common hook to collect fees or personal info.'),
+  es('threat','Threats / consequences',10,['accion legal','orden de arresto','arresto','policia','multas?','recargos?','cargo por mora','(?:sera|seran) (?:cortado|suspendido|desconectado)s?'],
+    'Threatens penalties, fines, or arrest to scare you into acting quickly.'),
+  es('generic','Generic greeting',5,['estimado (?:cliente|usuario)','querido cliente'],
+    'Uses a generic greeting instead of your name.'),
+  es('smsdelivery','Delivery / toll text scam',18,['peaje (?:pendiente|sin pagar|impago|vencido)','saldo de peaje','(?:paquete|envio|pedido) (?:esta |ha sido |fue )?(?:retenido|en espera|devuelto|suspendido)','(?:paquete|envio|pedido) no (?:pudo ser|fue) entregado','no (?:pudo|pudimos) entregar','direccion (?:incompleta|incorrecta|invalida)','reprogramar (?:la |su )?entrega'],
+    'Matches the most common scam texts: an unpaid toll, or a package "on hold" until you click a link or pay a fee.'),
+  es('smslock','Account or card lock alert',15,['(?:tarjeta|cuenta)(?: de (?:debito|credito))? (?:ha sido |esta |fue )?(?:temporalmente )?(?:bloqueada|suspendida|congelada|restringida|desactivada)'],
+    'Says your card or account is locked. Check by calling the number on the back of your card.'),
+  es('smsreply','Reply-to-unlock request',12,['respond(?:a|e) (?:si|sl|s1|1) para (?:desbloquear|verificar|confirmar|cancelar|aprobar)'],
+    'Asks you to reply "SÍ" to unlock or approve something. Replying often leads to a scam phone call.'),
+  es('job','Job / easy money offer',25,['gan(?:e|a|ar) \\$?\\d[\\d,]*(?:\\s*(?:-|a)\\s*\\$?\\d[\\d,]*)? (?:al|por) (?:dia|hora|semana)','trabajo (?:remoto|desde casa|en linea) (?:de medio tiempo|facil)','trabajo de medio tiempo (?:remoto|desde casa|en linea)','(?:contacte|contactenos|escribenos|escribeme|agregame) (?:por|en) (?:whatsapp|telegram)'],
+    'Offers easy money or a remote job by text, or moves the chat to WhatsApp or Telegram — classic job scams.'),
+  es('wrongnumber','Wrong-number opener',25,['(?:sigue siendo|todavia es) (?:este )?tu numero','perdon,? numero equivocado','creo que me equivoque de numero'],
+    'A friendly "wrong number" text from a stranger is how many investment and romance scams start. Don\'t reply.')
+);
+
 function extractUrls(text){
   const out = [];
   const re = /\b((?:https?:\/\/|www\.)[^\s<>"')\]]+|[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:com|net|org|io|co|app|xyz|top|click|link|info|biz|us|ru|cn|zip|mov|support|live|shop|icu|online|site|me)(?:\/[^\s<>"')\]]*)?)/gi;
@@ -66,6 +104,8 @@ function nameHasBrand(nameLc, b){ if(b.length>=5 && nameLc.replace(/[^a-z0-9]/g,
 function labelHasBrand(label, b){ return b.length>=5 ? label.includes(b) : label.split('-').includes(b); }
 // Brands that are also common first names: only count them in a display name with a company-style word nearby.
 const NAME_LIKE = { chase: /\b(bank|banking|alerts?|online|card|cards|secur\w*|service|support|team|fraud|account|notifications?|jpmorgan)\b/ };
+// True when a and brand differ only by characters screen-reading (OCR) often confuses: 1/l/I, 0/o, rn/m, vv/w, 5/s.
+function ocrOnlyDiff(label, brand){ const n = x => x.toLowerCase().replace(/[1i|]/g,'l').replace(/0/g,'o').replace(/rn/g,'m').replace(/vv/g,'w').replace(/5/g,'s'); return label !== brand && n(label) === n(brand); }
 function lev(a,b){ const d=Array.from({length:a.length+1},(_,i)=>[i]); for(let j=1;j<=b.length;j++)d[0][j]=j; for(let i=1;i<=a.length;i++)for(let j=1;j<=b.length;j++)d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]===b[j-1]?0:1)); return d[a.length][b.length]; }
 
 function parseSender(s){
@@ -84,8 +124,8 @@ function analyze({ text = '', sender = '', subject = '', source = '' } = {}){
   const add = (cat, pts, why, sev) => { reasons.push({ category:cat, points:pts, detail:why, severity: sev || (pts>=20?'high':pts>=10?'medium':'low') }); score += pts; };
 
   // Match rules on single-spaced text, so phrases split across lines (wrapped texts, screenshots) still count.
-  const flat = all.replace(/\s+/g, ' ');
-  for(const r of RULES){ const m = flat.match(r.re); if(m) add(r.cat, r.w, r.why + ` (matched: "${m[0].trim()}")`); }
+  const flat = all.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ');
+  for(const r of RULES){ if(reasons.some(x => x.category === r.cat)) continue; const m = flat.match(r.re); if(m) add(r.cat, r.w, r.why + ` (matched: "${m[0].trim()}")`); }
 
   // Sender analysis
   const s = parseSender(sender);
@@ -119,16 +159,19 @@ function analyze({ text = '', sender = '', subject = '', source = '' } = {}){
       const sub = h.slice(0, h.length-root.length);
       if(label===b) break;
       if(dl===b || (labelHasBrand(dl,b) && !label.includes(b)) || (b.length>=5 && lev(label,b)<=1) || (labelHasBrand(label,b) && /[-]|secure|verify|login|support|billing|account|update/.test(label)) || sub.split('.').some(part=>labelHasBrand(part,b))){
-        if(!linkFlags.has('look:'+h)){ linkFlags.add('look:'+h); add('Lookalike link', 25, `Link "${h}" pretends to be ${b} but goes to a different site (${root}).`); }
+        if(!linkFlags.has('look:'+h)){ linkFlags.add('look:'+h);
+          // In a screenshot, "paypa1" may just be "paypal" misread. If an OCR-confusable swap is the only difference, flag it more gently.
+          if(source === 'screenshot' && ocrOnlyDiff(label, b)) add('Lookalike link', 12, `Link "${h}" looks like ${b} with a letter swapped. That may be a reading error from the screenshot: check the original message. If the link really says "${h}", treat it as fake.`, 'medium');
+          else add('Lookalike link', 25, `Link "${h}" pretends to be ${b} but goes to a different site (${root}).`); }
         break;
       }
     }
-    if(s && s.domain && /\b(login|sign in|verify|confirm|update)\b/i.test(all) && rootDomain(s.domain)!==root && !linkFlags.has('mismatch') && !SHORTENERS.includes(h)){
+    if(s && s.domain && /\b(login|sign in|verify|confirm|update|inicie sesion|verifique|confirme|actualice)\b/i.test(all) && rootDomain(s.domain)!==root && !linkFlags.has('mismatch') && !SHORTENERS.includes(h)){
       linkFlags.add('mismatch'); add('Link/sender mismatch', 8, `Asks you to log in or verify, but the link (${root}) doesn't match the sender's domain (${rootDomain(s.domain)}).`);
     }
   }
   // phone number + call to action (tech support/callback phishing)
-  if(/(\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}/.test(body) && /\b(call|contact|dial)\b/i.test(body) && /\b(cancel|refund|renew|charged|dispute|infected|support|unlock|locked|suspended|fraud(?:ulent)?|suspicious)\b/i.test(all))
+  if(/(\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}/.test(body) && /\b(call|contact|dial|llame|llamar|llamenos|contacte|marque)\b/i.test(body) && /\b(cancel|refund|renew|charged|dispute|infected|support|unlock|locked|suspended|fraud(?:ulent)?|suspicious|cancelar|reembolso|cargo|bloquead[ao]|fraude|soporte|sospechos[ao])\b/i.test(all.normalize('NFD').replace(/[\u0300-\u036f]/g, '')))
     add('Callback scam pattern', 15, 'Gives a phone number to call about a charge, a refund, a locked account, or "support". Callback scams use these numbers to get remote access, codes, or payments. Look up the company\'s real number yourself.');
 
   // Combos

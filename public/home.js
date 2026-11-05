@@ -53,6 +53,7 @@ async function fromImage(file){
   catch(err){ status.style.color = 'var(--bad)'; status.textContent = err.message; }
   finally{ b.disabled = false; $('hs-file').value = ''; } }
 $('hs-shot').addEventListener('click', () => $('hs-file').click());
+['pointerenter','focus','touchstart'].forEach(t => $('hs-shot').addEventListener(t, () => SSOCR.warm(), { once:true, passive:true }));
 $('hs-file').addEventListener('change', e => { const f = e.target.files[0]; if(f) fromImage(f); });
 SSOCR.attach(form, fromImage);
 

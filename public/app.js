@@ -48,6 +48,8 @@ function render(j){ const c = colors[j.verdict];
   let h = `<div class="verdict"><div class="gauge" style="--p:${j.score};--c:${c}"><div>${j.score}</div></div><div><span class="pill ${j.verdict}">${ICON[j.verdict]} ${j.verdict}</span><h2 style="color:${c};margin-top:6px">${j.verdict==='Scam'?'Likely a scam':j.verdict==='Suspicious'?'Be careful':'No red flags found'}</h2><div class="sub">Risk score ${j.score}/100 · ${j.engine==='heuristic+llm'?'rules + AI':'rule-based check'}</div></div></div>`;
   const rs = j.reasons.filter(r => r.points > 0 || r.severity === 'info');
   h += rs.length ? '<b class="why">Why</b>' + rs.map(r => `<div class="reason"><span class="dot ${r.severity}"></span><div><b>${esc(r.category)}</b><p>${esc(r.detail)}</p></div></div>`).join('') : '<p style="color:var(--muted)">We didn’t find common scam patterns in this message.</p>';
+  if(j.reasons.some(r => r.category === 'Read from a screenshot') && j.links && j.links.length)
+    h += `<div class="linkcheck"><b>Links we read from your screenshot</b><p>Compare each one letter by letter with the original message:</p><ul>${j.links.slice(0, 5).map(l => '<li><code>' + esc(l) + '</code></li>').join('')}</ul></div>`;
   h += `<div class="advice"><b>What to do:</b> ${esc(j.advice)}</div>`;
   if(j.verdict !== 'Safe') h += REPORT;
   if(j.llm && !j.llm.error) h += `<div class="llm"><b>AI second opinion (${esc(j.llm.model)}):</b> ${esc(j.llm.verdict)} · ${j.llm.score}/100<ul>${j.llm.reasons.map(x => '<li>' + esc(x) + '</li>').join('')}</ul></div>`;
@@ -75,6 +77,7 @@ async function fromImage(file){
   finally{ shotBtn.disabled = false; $('shot').value = ''; }
 }
 shotBtn.addEventListener('click', () => $('shot').click());
+['pointerenter','focus','touchstart'].forEach(t => shotBtn.addEventListener(t, () => SSOCR.warm(), { once:true, passive:true }));
 $('shot').addEventListener('change', e => { const f = e.target.files[0]; if(f) fromImage(f); });
 SSOCR.attach($('f'), fromImage);
 

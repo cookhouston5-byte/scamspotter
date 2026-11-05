@@ -216,3 +216,5 @@ form.drag.scanner{border-color:var(--accent)}
 .install-tip{display:flex;gap:10px;align-items:flex-start;background:var(--surface2);border:1px solid var(--line);border-radius:var(--r-sm);padding:12px 14px;font-size:14px;color:var(--muted);margin-bottom:14px}
 .install-tip svg.i{color:var(--accent);margin-top:2px}.install-tip b{color:var(--ink)}.install-tip .x2{margin-left:auto;background:none;border:0;color:var(--dim);cursor:pointer;font-size:18px;line-height:1;padding:0 2px}
 .install-tip{margin-bottom:0}
+.linkcheck{margin-top:14px;border:1px solid var(--line);border-radius:var(--r-sm);padding:12px 16px;font-size:14.5px}
+.linkcheck p{margin:2px 0 6px;color:var(--muted)}.linkcheck ul{margin:0;padding-left:18px}.linkcheck code{font-family:var(--mono);font-size:13.5px;word-break:break-all;color:var(--ink)}

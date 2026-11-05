@@ -38,7 +38,7 @@ npm test                  # engine + API tests
   ScamSpotter then appears in the Share menu; `sw.js` receives the shared text/image, holds it in the browser cache only until
   `/check?shared=1` reads it, then deletes it. (iPhone doesn't support web share targets; iPhone users upload the screenshot.)
 - Text-message rules in `engine.js`: toll/delivery texts, card/account lock alerts, "reply YES to unlock", job/easy-money
-  offers, and "wrong number" openers.
+  offers, and "wrong number" openers, in English and Spanish (matched without accents).
 
 ## Plans
 - **Free:** `FREE_CHECKS_PER_DAY` (default 5) checks per IP per day, counted in memory.
@@ -106,7 +106,9 @@ With an LLM, the final score is the average of the two scores, and it can never 
 5. Add a shared team history. Retain or delete message bodies according to a published privacy policy.
 
 ## Known limitations
-- Heuristics and screenshot reading are English-only. Screenshot text can contain small reading errors (e.g. l vs 1).
+- Rules cover English and Spanish messages; results are explained in English. Screenshot text can contain small reading errors (e.g. l vs 1):
+  common link misreads are repaired, a lookalike link that differs only by an OCR-confusable letter is flagged more gently, and the
+  result lists the links it read so users can compare.
 - Heuristics are pattern-based. They can miss novel or well-written scams and can flag legit messages that discuss payments urgently. A result is guidance, not a guarantee.
 - Pasted text has no email headers, so real SPF/DKIM spoof checks aren't possible yet.
 - Links aren't fetched or checked against threat-intel feeds (e.g. Google Safe Browsing).
