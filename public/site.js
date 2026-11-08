@@ -53,6 +53,7 @@ function renderPlan(){
     else if(st === 'canceled' || st === 'none') detail = 'This team no longer has an active plan. Start a new trial or contact us.';
     else if(!p.details) detail = 'Unlimited checks for your whole team.';
     h += `<div class="plan-card"><div class="pt"><b>Team plan</b><span class="status ${cls}">${esc(label)}</span></div><div class="pd">${esc(detail)}</div></div>`;
+    h += `<a class="btn ghost block" href="/agent" style="margin-bottom:12px">Open the Agent: emails, deepfakes, calls</a>`;
     h += `<div class="stack">${p.canManage ? `<button class="btn block" type="button" data-portal>Manage subscription</button>` : ''}
       <p style="font-size:13px;margin:0">Update your card, download invoices, or cancel. Opens Stripe’s secure billing page.</p></div>`;
     h += `<details style="margin-top:12px"><summary style="cursor:pointer;font-size:14px">Team access key</summary><div style="padding-top:8px">${keyForm('Saved on this device')}<button class="linkbtn" type="button" data-copy style="font-size:13.5px">Copy key to share with your team</button> · <button class="linkbtn" type="button" data-forget style="font-size:13.5px">Remove from this device</button></div></details>`;
@@ -117,6 +118,7 @@ function build(){
  <details class="dsec" id="m-help"><summary>${I.help}Help</summary><div class="in">
   <p><b style="color:var(--ink)">How to check a message</b></p>
   <ol class="helplist"><li>Copy the text, email, or link, or take a screenshot of it.</li><li>Paste it into the <a href="/check">checker</a>, or tap <b>Upload a screenshot</b>.</li><li>Read the reasons, then follow “What to do”.</li></ol>
+  <p style="margin-top:12px"><b style="color:var(--ink)">Deeper checks (Team plan)</b></p><p>The <a href="/agent">Agent</a> investigates full emails, photos and videos that might be deepfakes, and suspicious phone calls.</p>
   <p style="margin-top:12px"><b style="color:var(--ink)">Put ScamSpotter on your phone</b></p>
   <div id="install-box"></div>
   <ul class="helplist"><li><b>iPhone:</b> open scamspotter.app in Safari, tap Share, then “Add to Home Screen”.</li>

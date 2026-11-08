@@ -93,7 +93,9 @@ function extractUrls(text){
   return [...new Set(out)];
 }
 function hostOf(u){ try{ return new URL(/^https?:/i.test(u)?u:'http://'+u).hostname.toLowerCase(); }catch{ return null; } }
-function rootDomain(h){ const p=h.split('.'); return p.slice(-2).join('.'); }
+// Two-part country endings (amazon.co.uk) keep three labels, so the real company name is compared.
+const SLD = /^(co|com|net|org|gov|ac|edu|ltd|plc|me|gob|nic|or|ne)\.[a-z]{2}$/;
+function rootDomain(h){ const p=h.split('.'); return p.slice(SLD.test(p.slice(-2).join('.')) && p.length>2 ? -3 : -2).join('.'); }
 function deLeet(s){ return s.replace(/0/g,'o').replace(/1/g,'l').replace(/3/g,'e').replace(/5/g,'s').replace(/rn/g,'m').replace(/vv/g,'w'); }
 // Brand names as people write them in display names ("Wells Fargo", "Geek Squad").
 const BRAND_WORDS = { wellsfargo:'wells fargo', bankofamerica:'bank of america', geeksquad:'geek squad', office365:'office 365', alaskausa:'alaska usa' };
@@ -117,8 +119,9 @@ function parseSender(s){
   return { name, email, domain: dom };
 }
 
-function analyze({ text = '', sender = '', subject = '', source = '' } = {}){
-  const body = String(text||''); const subj = String(subject||'');
+function analyze(input){
+  const { text = '', subject = '', source = '' } = input || {}; const sender = typeof input?.sender === 'string' ? input.sender : '';
+  const body = typeof text === 'string' ? text : String(text ?? ''); const subj = typeof subject === 'string' ? subject : '';
   const all = subj + '\n' + body;
   const reasons = []; let score = 0;
   const add = (cat, pts, why, sev) => { reasons.push({ category:cat, points:pts, detail:why, severity: sev || (pts>=20?'high':pts>=10?'medium':'low') }); score += pts; };
@@ -145,7 +148,7 @@ function analyze({ text = '', sender = '', subject = '', source = '' } = {}){
   }
 
   // Link analysis
-  const urls = extractUrls(body);
+  const urls = extractUrls(subj + '\n' + body);
   const linkFlags = new Set();
   for(const u of urls){
     const h = hostOf(u); if(!h) continue;
@@ -194,4 +197,4 @@ function analyze({ text = '', sender = '', subject = '', source = '' } = {}){
     : 'No strong scam signals found. Stay alert anyway: if it asks for money, logins, or a payment change, verify it independently.';
   return { verdict, score, reasons, advice, links: urls, engine:'heuristic' };
 }
-module.exports = { analyze };
+module.exports = { analyze, rootDomain, hostOf, extractUrls };

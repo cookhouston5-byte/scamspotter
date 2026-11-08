@@ -70,4 +70,5 @@ function verifyStripeSignature(rawBody, header, whsec, toleranceSec = 300){
   return sigs.some(s => s.length === expected.length && crypto.timingSafeEqual(Buffer.from(s), Buffer.from(expected)));
 }
 
-module.exports = { makeKey, parseKey, isActiveCustomer, stripeGet, stripePost, planInfo, verifyStripeSignature };
+const forgetCustomer = id => { if(id) subCache.delete(id); };
+module.exports = { makeKey, parseKey, isActiveCustomer, forgetCustomer, stripeGet, stripePost, planInfo, verifyStripeSignature };

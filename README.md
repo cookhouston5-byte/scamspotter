@@ -8,7 +8,11 @@ Founder: Houston Cook, Anchorage, Alaska.
 - Node 18+ / Express (`server.js`), with no database
 - Static frontend in `public/` (plain HTML/CSS/JS, no build step)
 - `engine.js`: rule-based heuristic engine that needs no API key
-- `llm.js`: optional OpenAI second opinion, used only if `OPENAI_API_KEY` is set
+- `xai.js`: Grok (xAI) client, Responses API with a small tool loop; used only if `XAI_API_KEY` is set
+- `llm.js`: Grok second opinion on regular checks (Team plan)
+- `agent.js`: the Agent (Team plan): full-email investigation (SPF/DKIM/DMARC, Reply-To, hidden links, attachments, domain age via RDAP), photo/video deepfake checks, voice-call checks
+- `mail.js`: small email/MIME reader for pasted originals and .eml files
+- `media.js`: reads image/video metadata for AI-generator labels, Content Credentials (C2PA), editing apps, and camera details
 - `access.js`: team access keys (signed with `ACCESS_KEY_SECRET`) and Stripe helpers; Stripe is the source of truth for subscriptions
 - `emails.js`: welcome email and owner notifications through Resend
 
@@ -60,7 +64,9 @@ npm test                  # engine + API tests
 | `DATA_DIR` | Folder for feedback/reviews files. Point it at a Render persistent disk, e.g. `/var/data`. |
 | `FREE_CHECKS_PER_DAY` | Free daily limit (default 5). |
 | `FEEDBACK_TOKEN` | Lets you read stored feedback at `GET /api/feedback` (add `?type=reviews` for reviews). |
-| `OPENAI_API_KEY`, `OPENAI_MODEL` | Optional AI second opinion. |
+| `XAI_API_KEY` | Grok API key from console.x.ai. Turns on Grok for the Team plan: the AI second opinion and the Agent's AI review (including looking at photos and video frames). Without it, the Agent still runs its automatic checks. |
+| `XAI_MODEL` | Optional. Grok model, default `grok-4.7`. |
+| `AGENT_DAILY_LIMIT` | Optional. Agent checks per team per day (default 150), to keep Grok costs predictable. |
 
 ## Go-live checklist
 1. **Stripe → Payment Link → After payment:** redirect to `https://scamspotter.app/welcome?session_id={CHECKOUT_SESSION_ID}`.
@@ -92,7 +98,7 @@ With an LLM, the final score is the average of the two scores, and it can never 
 - `POST /api/feedback`, `POST /api/reviews` → stored in `DATA_DIR` and emailed to `OWNER_EMAIL`
 
 ## Deploy
-**Render (recommended):** create a new Web Service from the repo. Set Build to `npm install` and Start to `npm start`. Add `OPENAI_API_KEY` if you want AI analysis. See the go-live checklist above.
+**Render (recommended):** create a new Web Service from the repo. Set Build to `npm install` and Start to `npm start`. Add `XAI_API_KEY` to turn on Grok for Team plan members. See the go-live checklist above.
 
 **Vercel:** `vercel.json` is included and `server.js` exports the app. Vercel's filesystem is ephemeral, so rely on `OWNER_EMAIL` for feedback and reviews there.
 
@@ -114,3 +120,13 @@ With an LLM, the final score is the average of the two scores, and it can never 
 - Links aren't fetched or checked against threat-intel feeds (e.g. Google Safe Browsing).
 - No individual accounts: a whole team shares one access key.
 - Rate limits and the free daily count are in memory per IP and reset on restart.
+
+## The Agent (Team plan)
+
+Open it at `/agent`, or from Menu → Your plan. Free visitors see an upgrade card; the server refuses Agent requests (and large uploads) without a valid team key.
+
+- **Email:** paste the original email (Gmail: ⋮ → Show original) or upload a `.eml`. Checks the mail server's SPF/DKIM/DMARC results, display-name tricks, Reply-To and bounce addresses, links whose text and destination differ, risky attachments, the wording rules, and how old each domain is (public RDAP records, with a DNS check). With Grok on, Grok reviews the evidence and can look up more domains itself.
+- **Photo or video:** looks inside the file for AI labels, AI tool names, generation settings, Content Credentials, editing apps, and camera details. With Grok on, Grok looks at the picture (or 4 stills from a video) for signs of AI generation, face swaps, and fake documents. No tool can prove a photo or video is real; the page says so.
+- **Voice call:** the user writes down what the caller said; checks for voice-clone scripts (family emergency, fake boss, codes, gift cards, threats).
+
+Grok is asked not to store requests (`store:false`). Photos and video stills sent to the Agent are uploaded (unlike the regular screenshot reader); the privacy policy explains this.
