@@ -101,11 +101,7 @@ function build(){
   d.innerHTML = `<div class="dh"><b>Menu</b><button class="x" type="button" data-close aria-label="Close menu">${I.x}</button></div>
 <div class="db">
  <details class="dsec" id="m-plan" open><summary>${I.plan}Your plan &amp; subscription</summary><div class="in" id="dm-plan"><p>Loading your plan…</p></div></details>
- <details class="dsec" id="m-about"><summary>${I.user}About the owner</summary><div class="in">
-  <div class="owner"><img src="/img/houston-avatar.jpg" alt="Houston Cook" width="64" height="64"><div><b>Houston Cook</b>Founder · Anchorage, Alaska</div></div>
-  <p>I built ScamSpotter so the people who pay the bills at small businesses have a quick, plain-English way to check a suspicious message before they act.</p>
-  <p>Questions or ideas? I read every message: <a href="mailto:${CONTACT}">${CONTACT}</a></p>
-  <a href="/about">Read the full story →</a></div></details>
+ <a class="dlink" href="/about">${I.user}About</a>
  <details class="dsec" id="m-reviews"><summary>${I.chat}Customer comments</summary><div class="in"><div id="dm-reviews"><p>Loading…</p></div>
   <details style="margin-top:6px"><summary style="cursor:pointer;color:var(--accent);font-weight:600">Leave a review</summary>
   <form class="dform" id="rv" novalidate style="margin-top:10px">
