@@ -16,13 +16,9 @@ const mark = logo.match(/d="(M16 2\.5v6M16 23\.5v6M2\.5 16h6M23\.5 16h6)"/);
 ok(mark, 'logo.svg still has the crosshair mark');
 ok(knight.includes(`d="${mark[1]}"`), 'knight shield uses that same crosshair path');
 ok(knight.includes('r="10"') && knight.includes('r="4.2"') && knight.includes('r="1.1"'), 'knight shield keeps the logo circles');
-
-const barrel = knight.match(/<rect id="rifle-barrel"[^>]*>/);
-ok(barrel, 'knight carries a rifle');
-const width = Number(barrel[0].match(/width="([\d.]+)"/)[1]);
-const height = Number(barrel[0].match(/height="([\d.]+)"/)[1]);
-ok(height > width * 4, 'rifle barrel is vertical, muzzle down, not aimed across the picture');
-ok(!/<g id="rifle"[^>]*rotate/.test(knight), 'rifle group is not rotated toward a target');
+ok(knight.includes('data:image/webp;base64,'), 'knight art is an embedded image');
+ok(!knight.includes('#f6d7b8'), 'knight svg has no open-visor face color');
+ok(fs.statSync(path.join(root, 'public/img/knight.svg')).size < 200000, 'knight svg stays under 200KB');
 
 const uses = home.match(/src="\/img\/knight\.svg"/g) || [];
 ok(uses.length === 3, 'homepage shows the knight three times');

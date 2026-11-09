@@ -204,16 +204,16 @@ a.dlink:after{content:"";margin-left:auto;width:8px;height:8px;border-right:1.75
 .drawer[hidden]{display:none}
 /* knight mascot: hero plus two smaller repeats */
 .mascot{display:block;height:auto;max-width:100%;pointer-events:none}
-.hero-mascot{width:200px;margin-top:22px}
+.hero-mascot{width:190px;margin-top:22px}
 .sec-h.with-mascot{max-width:none;display:flex;align-items:center;justify-content:space-between;gap:28px}
 .sec-h.with-mascot>div{max-width:660px}
-.sec-h.with-mascot .mascot{width:128px;flex:none}
-.band-mascot{width:108px;flex:none;position:relative;z-index:1}
+.sec-h.with-mascot .mascot{width:118px;flex:none}
+.band-mascot{width:92px;flex:none;position:relative;z-index:1}
 @media (max-width:700px){
   .hero-mascot{width:150px}
   .sec-h.with-mascot{align-items:flex-start;gap:16px}
-  .sec-h.with-mascot .mascot{width:92px}
-  .band-mascot{width:84px}
+  .sec-h.with-mascot .mascot{width:96px}
+  .band-mascot{width:80px}
 }
 @media (max-width:560px){.sec-h.with-mascot{flex-direction:column}}
 @media (max-width:420px){.nav .wrap{gap:8px}.nav-links{gap:6px}.nav .btn.sm{padding:7px 11px;font-size:13px}.logo{font-size:16px;gap:8px}.logo img{width:24px;height:24px}}
