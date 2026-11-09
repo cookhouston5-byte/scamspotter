@@ -17,7 +17,7 @@ const fake = (d, v) => agent._cache.set(d, { at: Date.now(), v: { domain: d, ...
 const realFetch = global.fetch; let grokScript = null, grokCalls = [];
 global.fetch = async (url, opts) => {
   const u = String(url);
-  if(u.startsWith('https://api.x.ai/')){ const body = JSON.parse(opts.body); grokCalls.push(body); const next = grokScript.shift(); return new Response(JSON.stringify(typeof next === 'function' ? next(body) : next), { status: 200 }); }
+  if(u.startsWith('https://api.x.ai/')){ const body = JSON.parse(opts.body); grokCalls.push(body); const next = grokScript.shift(); if(next && next.status) return new Response('{}', { status: next.status }); return new Response(JSON.stringify(typeof next === 'function' ? next(body) : next), { status: 200 }); }
   if(u.startsWith('https://rdap.org/')){ const d = u.split('/').pop(); return new Response(JSON.stringify({ events:[{ eventAction:'registration', eventDate: d.startsWith('new') ? new Date(Date.now() - 3 * 864e5).toISOString() : '2001-01-01T00:00:00Z' }] }), { status: 200 }); }
   return realFetch(url, opts);
 };
@@ -150,6 +150,12 @@ function jpeg(tags, tail = Buffer.alloc(0)){
   ok(grokCalls[0].input[1].content.some(c => c.type === 'input_image'), 'image sent to Grok as input_image');
   ok(r.verdict === 'Scam' && r.engine === 'checks+grok', 'Grok visual review drives deepfake verdict');
 
+  grokScript = [{ output: [{ type:'message', content: [{ type:'output_text', text: '{"verdict":"Scam","score":"98","summary":"Boss gift card scam","reasons":[],"next_steps":[]}' }] }] }];
+  r = await agent.voiceAgent({ transcript: 'Hi this is your CEO, I am stuck in a meeting, buy gift cards and keep this between us.' });
+  ok(r.engine === 'checks+grok' && r.score >= 90 && r.ai.score === 98, `Grok score sent as text still counts (${r.score})`);
+  grokScript = [{ status: 502 }, { output: [{ type:'message', content: [{ type:'output_text', text: '{"verdict":"Scam","score":95,"summary":"retried","reasons":[],"next_steps":[]}' }] }] }];
+  r = await agent.voiceAgent({ transcript: 'This is the IRS, pay with gift cards now or be arrested.' });
+  ok(r.ai && r.ai.summary === 'retried', 'one retry after a Grok server error');
   grokScript = [() => { throw new Error('boom'); }];
   r = await agent.voiceAgent({ transcript: 'This is the IRS, you will be arrested unless you pay with gift cards right now.' });
   ok(r.verdict === 'Scam' && r.aiError, 'Grok failure falls back to the automatic checks');

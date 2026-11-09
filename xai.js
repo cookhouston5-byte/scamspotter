@@ -41,8 +41,13 @@ async function ask({ system, user, schema, schemaName = 'answer', tools = [], ma
     if(toolDefs.length && turn < maxTurns) body.tools = toolDefs;
     if(useFormat && schema) body.text = { format:{ type:'json_schema', name:schemaName, schema, strict:true } };
     let j;
-    try{ j = await call(body, Math.max(5000, timeoutMs - (Date.now() - started))); }
-    catch(e){ if(e.status === 400 && useFormat){ useFormat = false; turn--; continue; } throw e; } // older models: retry without the schema option
+    const left = () => Math.max(5000, timeoutMs - (Date.now() - started));
+    try{ j = await call(body, left()); }
+    catch(e){
+      if(e.status === 400 && useFormat){ useFormat = false; turn--; continue; } // older models: retry without the schema option
+      if((e.status >= 500 || e.status === 429) && timeoutMs - (Date.now() - started) > 15000){ await new Promise(r => setTimeout(r, 1500)); j = await call(body, left()); } // one retry on a passing server error
+      else throw e;
+    }
     const calls = (j.output || []).filter(o => o.type === 'function_call');
     if(calls.length && turn < maxTurns){
       for(const c of calls.slice(0, 4)){
