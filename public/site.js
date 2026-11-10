@@ -55,7 +55,7 @@ function renderPlan(){
     h += `<div class="plan-card"><div class="pt"><b>Team plan</b><span class="status ${cls}">${esc(label)}</span></div><div class="pd">${esc(detail)}</div></div>`;
     h += `<a class="btn ghost block" href="/agent" style="margin-bottom:12px">Open the Agent: emails, deepfakes, calls</a>`;
     h += `<div class="stack">${p.canManage ? `<button class="btn block" type="button" data-portal>Manage subscription</button>` : ''}
-      <p style="font-size:13px;margin:0">Update your card, download invoices, or cancel. Opens Stripe’s secure billing page.</p></div>`;
+      <p style="font-size:13px;margin:0">${p.canManage ? 'Update your card, download invoices, or cancel. Opens Stripe’s secure billing page.' : `To update your card or cancel, email <a href="mailto:${CONTACT}">${CONTACT}</a> and we’ll take care of it.`}</p></div>`;
     h += `<details style="margin-top:12px"><summary style="cursor:pointer;font-size:14px">Team access key</summary><div style="padding-top:8px">${keyForm('Saved on this device')}<button class="linkbtn" type="button" data-copy style="font-size:13.5px">Copy key to share with your team</button> · <button class="linkbtn" type="button" data-forget style="font-size:13.5px">Remove from this device</button></div></details>`;
   } else {
     const left = p.remaining ?? 0, lim = p.limit ?? 5;
@@ -77,7 +77,7 @@ function renderPlan(){
   const portal = el.querySelector('[data-portal]');
   if(portal) portal.addEventListener('click', async () => { portal.disabled = true; portal.textContent = 'Opening billing…';
     try{ const r = await fetch('/api/billing-portal', { method:'POST', headers: headers() }); const j = await r.json(); if(j.url){ location.href = j.url; return; } throw new Error(j.error || 'Couldn’t open billing.'); }
-    catch(err){ portal.disabled = false; portal.textContent = 'Manage subscription'; alert(err.message); } });
+    catch(err){ portal.disabled = false; portal.textContent = 'Manage subscription'; alert(friendly(err)); } });
   const copy = el.querySelector('[data-copy]');
   if(copy) copy.addEventListener('click', async () => { try{ await navigator.clipboard.writeText(getKey()); copy.textContent = 'Copied!'; }catch(e){ copy.textContent = 'Select the key above and copy it'; } });
   const forget = el.querySelector('[data-forget]');
@@ -153,7 +153,7 @@ function build(){
     b.disabled = true; m.className = 'formmsg'; m.textContent = 'Sending…';
     try{ const r = await fetch('/api/reviews', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(data) }); const j = await r.json().catch(() => ({}));
       if(!r.ok) throw new Error(j.error || 'Couldn’t send. Please try again.'); rv.reset(); m.className = 'formmsg ok'; m.textContent = 'Thank you! Houston will read it soon.'; }
-    catch(err){ m.className = 'formmsg err'; m.textContent = err.message; } finally { b.disabled = false; } });
+    catch(err){ m.className = 'formmsg err'; m.textContent = friendly(err); } finally { b.disabled = false; } });
   const q = new URLSearchParams(location.search).get('menu'); if(q) open(q);
   renderInstall();
 }
@@ -184,5 +184,8 @@ if('serviceWorker' in navigator && location.protocol !== 'file:') window.addEven
 const boot = () => { build(); installTip(); };
 if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
 
-window.SS = { getKey, headers, refreshPlan, updateQuota, onPlan: f => listeners.push(f), setKey: k => { store.set('ss-team-key', k); refreshPlan(); }, trialUrl: STRIPE_TRIAL };
+// Plain-English error text: network failures and unreadable replies shouldn't show browser jargon like "Failed to fetch".
+const friendly = err => (err instanceof TypeError || /fetch|network|load failed/i.test(err && err.message || '')) ? 'Couldn’t reach ScamSpotter. Check your internet connection and try again.'
+  : err instanceof SyntaxError ? 'Something went wrong on our end. Please try again in a minute.' : (err && err.message) || 'Something went wrong. Please try again.';
+window.SS = { friendly, getKey, headers, refreshPlan, updateQuota, onPlan: f => listeners.push(f), setKey: k => { store.set('ss-team-key', k); refreshPlan(); }, trialUrl: STRIPE_TRIAL };
 })();

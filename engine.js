@@ -19,7 +19,7 @@ const RULES = [
     why:'Asks for a wire, crypto, Zelle, or money-transfer payment — methods that are hard or impossible to reverse.' },
   { id:'invoice', cat:'Invoice / payment demand', w:10, re: /\b(overdue|past due|outstanding (?:invoice|balance|payment)|unpaid invoice|invoice (?:#|no\.?|number)|payment (?:is )?(?:due|required|overdue)|remit payment|final invoice|collections?)\b/i,
     why:'Pushes an invoice or overdue payment. Fake invoices are common — check that the vendor, amount, and PO match your records.' },
-  { id:'credentials', cat:'Credential request', w:20, re: /\b(verify your (?:account|identity|password|login|information)|confirm your (?:password|login|credentials|account|identity)|(?:re-?)?enter your (?:password|credentials|login)|login to (?:avoid|restore|verify)|reset your password|update your (?:password|payment (?:method|information)|billing)|unusual (?:sign-?in|login|activity)|validate your)\b/i,
+  { id:'credentials', cat:'Credential request', w:20, re: /\b(verify your (?:account|identity|password|login|information)|confirm your (?:password|login|credentials|account|identity)|(?:re-?)?enter your (?:password|credentials|login)|login to (?:avoid|restore|verify)|reset your password|update your (?:password|payment (?:method|information)|billing)|unusual (?:sign-?in|login)(?: activity| attempt)?|validate your)\b/i,
     why:'Asks you to log in, verify, or "confirm" your account or password — the core move of phishing.' },
   { id:'sensitive', cat:'Sensitive data request', w:18, re: /\b(social security|ssn|w-?2s?|tax forms?|employee (?:list|records|data)|bank (?:login|password)|pin (?:number|code)|one.time (?:code|passcode)|verification code|2fa code|mfa code|security code|card number|cvv)\b/i,
     why:'Asks for sensitive information (SSNs, W-2s, passwords, one-time codes, card numbers). Never send these by email or text.' },
@@ -33,6 +33,8 @@ const RULES = [
     why:'References an attachment type often used for malware or fake login pages (.html, .zip, .exe, .iso, macro documents).' },
   { id:'generic', cat:'Generic greeting', w:5, re: /\b(dear (?:customer|user|client|valued customer|sir|madam|sir\/madam|account holder)|hello (?:customer|user))\b/i,
     why:'Uses a generic greeting instead of your name — mass phishing rarely knows who you are.' },
+  { id:'activity', cat:'Suspicious activity claim', w:8, re: /\b((?:suspicious|unusual|unauthori[sz]ed) (?:activity|charges?|transactions?|purchases?)|fraudulent (?:activity|charges?))\b/i,
+    why:'Says there was suspicious activity on your account. Real alerts happen too, so check by calling the number on your card or in your app, never one in the message.' },
   // Text-message (SMS) scams
   { id:'smsdelivery', cat:'Delivery / toll text scam', w:18, re: /\b(unpaid toll|toll (?:balance|bill|violation|charges?)|outstanding toll|(?:package|parcel|shipment|delivery) (?:is |has been )?(?:on hold|held|suspended|could not be delivered|was not delivered|undeliverable|returned)|could not be delivered|(?:incomplete|invalid|incorrect) (?:shipping |delivery )?address|redelivery|re-?schedule (?:your )?delivery|delivery attempt (?:failed|was unsuccessful))\b/i,
     why:'Matches the most common scam texts: an unpaid toll, or a package "on hold" until you click a link or pay a small fee. Real carriers and toll agencies rarely text links asking for payment.' },
@@ -64,8 +66,10 @@ RULES.push(
     'Asks for a wire, crypto, or money-transfer payment — methods that are hard or impossible to reverse.'),
   es('invoice','Invoice / payment demand',10,['factura (?:vencida|pendiente|atrasada)','pago (?:vencido|pendiente|atrasado)','saldo pendiente'],
     'Pushes an overdue invoice or payment. Check that it matches your records.'),
-  es('credentials','Credential request',20,['verifi(?:que|ca|car) su (?:cuenta|identidad|contrasena|informacion)','confirm(?:e|a|ar) su (?:contrasena|cuenta|identidad|informacion)','ingres(?:e|a) su contrasena','actualice su (?:informacion|metodo de pago|contrasena)','inicio de sesion (?:inusual|sospechoso)','actividad (?:inusual|sospechosa)'],
+  es('credentials','Credential request',20,['verifi(?:que|ca|car) su (?:cuenta|identidad|contrasena|informacion)','confirm(?:e|a|ar) su (?:contrasena|cuenta|identidad|informacion)','ingres(?:e|a) su contrasena','actualice su (?:informacion|metodo de pago|contrasena)','inicio de sesion (?:inusual|sospechoso)'],
     'Asks you to log in, verify, or "confirm" your account — the core move of phishing.'),
+  es('activity','Suspicious activity claim',8,['actividad (?:inusual|sospechosa)','cargos? (?:no autorizados?|sospechosos?)','compra sospechosa','transaccion(?:es)? (?:sospechosas?|no autorizadas?)'],
+    'Says there was suspicious activity on your account. Real alerts happen too, so check by calling the number on your card or in your app, never one in the message.'),
   es('sensitive','Sensitive data request',18,['(?:numero de )?seguro social','codigo de (?:verificacion|seguridad)','numero de (?:la )?tarjeta','clave (?:de acceso|bancaria)'],
     'Asks for sensitive information (Social Security number, codes, card numbers). Never send these by text or email.'),
   es('prize','Too good to be true',14,['(?:usted )?(?:ha|has) ganado','ganador','felicidades,? (?:usted|has|ha)','reclam(?:e|a) su (?:premio|reembolso)','loteria','herencia'],
@@ -163,6 +167,9 @@ function analyze(input){
       if(label===b) break;
       if(dl===b || (labelHasBrand(dl,b) && !label.includes(b)) || (b.length>=5 && lev(label,b)<=1) || (labelHasBrand(label,b) && /[-]|secure|verify|login|support|billing|account|update/.test(label)) || sub.split('.').some(part=>labelHasBrand(part,b))){
         if(!linkFlags.has('look:'+h)){ linkFlags.add('look:'+h);
+          // "paypal.com.account-verify.co": the real address is used as a disguise in front of someone else's site.
+          const disguise = new RegExp('(^|\\.)(' + b + '\\.(?:com|net|org|co|us|gov))\\.').exec(h);
+          if(disguise){ add('Disguised link', 55, `The link starts with "${disguise[2]}" to look real, but it actually goes to ${root}, a different website.`); break; }
           // In a screenshot, "paypa1" may just be "paypal" misread. If an OCR-confusable swap is the only difference, flag it more gently.
           if(source === 'screenshot' && ocrOnlyDiff(label, b)) add('Lookalike link', 12, `Link "${h}" looks like ${b} with a letter swapped. That may be a reading error from the screenshot: check the original message. If the link really says "${h}", treat it as fake.`, 'medium');
           else add('Lookalike link', 25, `Link "${h}" pretends to be ${b} but goes to a different site (${root}).`); }
@@ -182,7 +189,7 @@ function analyze(input){
   if(has('Gift card request') && (has('Urgency pressure')||has('Secrecy request'))) add('Combination: boss/gift-card scam', 15, 'Gift cards plus urgency or secrecy is the textbook "boss needs gift cards" scam.');
   if(has('Payment / bank change') && (has('Invoice / payment demand')||has('Urgency pressure'))) add('Combination: invoice redirection', 12, 'A bank-detail change paired with an invoice or deadline matches vendor-impersonation invoice fraud.');
 
-  if((has('Lookalike link')||has('Raw IP link')||has('Disguised characters in link')) && (has('Urgency pressure')||has('Credential request')||has('Threats / consequences'))) add('Combination: deceptive link + pressure', 10, 'A disguised link combined with pressure to act is the standard phishing recipe.');
+  if((has('Lookalike link')||has('Disguised link')||has('Raw IP link')||has('Disguised characters in link')) && (has('Urgency pressure')||has('Credential request')||has('Threats / consequences'))) add('Combination: deceptive link + pressure', 10, 'A disguised link combined with pressure to act is the standard phishing recipe.');
   if(has('Risky link domain') && (has('Urgency pressure')||has('Threats / consequences'))) add('Combination: risky link + pressure', 10, 'A link to a high-risk domain combined with a deadline or threat is a common phishing pattern.');
   if(has('Delivery / toll text scam') && urls.length) add('Combination: text scam + link', 15, 'A delivery or toll message that asks you to tap a link is the standard "smishing" scam. Go to the carrier or toll agency\'s website yourself instead.');
   if(has('Account or card lock alert') && (has('Reply-to-unlock request')||has('Callback scam pattern')||urls.length)) add('Combination: lock alert + action', 10, 'A "card locked" alert that asks you to reply, call a number in the text, or tap a link is a common bank-impersonation scam.');

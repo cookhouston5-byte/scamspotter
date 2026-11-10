@@ -33,7 +33,7 @@ async function send(kind, body, btn){
     if(r.status === 402){ out.innerHTML = lockHtml(j.badKey ? 'Your saved team key wasn’t accepted.' : ''); return; }
     if(!r.ok) throw new Error(j.error || 'Something went wrong.');
     render(j);
-  }catch(err){ out.innerHTML = '<div class="empty">' + esc(err.message) + '</div>'; }
+  }catch(err){ out.innerHTML = '<div class="empty">' + esc(SS.friendly(err)) + '</div>'; }
   finally{ btn.disabled = false; label.textContent = was; if(innerWidth < 900) out.scrollIntoView({ behavior:'smooth' }); }
 }
 

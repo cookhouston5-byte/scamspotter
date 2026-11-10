@@ -10,6 +10,7 @@ const colors = { Scam:'var(--bad)', Suspicious:'var(--warn)', Safe:'var(--safe)'
 const goLabel = $('go').querySelector('span');
 let source = ''; // 'screenshot' when the message text came from an image
 $('text').addEventListener('input', () => { if(!$('text').value.trim()) source = ''; });
+$('text').addEventListener('keydown', e => { if(e.key === 'Enter' && (e.ctrlKey || e.metaKey)){ e.preventDefault(); $('f').requestSubmit(); } }); // Ctrl/⌘+Enter checks
 
 const box = document.querySelector('.samples');
 [...SAMPLES, LEGIT_SAMPLE].forEach(s => { const b = document.createElement('button'); b.type = 'button'; const legit = s.expect === 'Safe';
@@ -28,7 +29,7 @@ async function run(e){ e && e.preventDefault(); const out = $('out'); if(!$('tex
     const j = await r.json();
     if(r.status === 402){ SS.updateQuota(j.plan); out.innerHTML = limitHtml(j); return; }
     if(!r.ok) throw new Error(j.error); SS.updateQuota(j.plan); render(j);
-  }catch(err){ out.innerHTML = '<div class="empty">' + esc(err.message || 'Something went wrong.') + '</div>'; }
+  }catch(err){ out.innerHTML = '<div class="empty">' + esc(SS.friendly(err)) + '</div>'; }
   finally{ $('go').disabled = false; goLabel.textContent = 'Check message'; if(innerWidth < 900) out.scrollIntoView({ behavior:'smooth' }); } }
 
 function limitHtml(j){
@@ -73,7 +74,7 @@ async function fromImage(file){
     $('text').value = text; $('sender').value = ''; $('subject').value = ''; source = 'screenshot';
     st.className = 'ocr-status ok'; st.textContent = 'Text read from your screenshot. Fix anything that looks off and check again.';
     run();
-  }catch(err){ st.className = 'ocr-status err'; st.textContent = err.message; }
+  }catch(err){ st.className = 'ocr-status err'; st.textContent = SS.friendly(err); }
   finally{ shotBtn.disabled = false; $('shot').value = ''; }
 }
 shotBtn.addEventListener('click', () => $('shot').click());

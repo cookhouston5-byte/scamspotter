@@ -146,7 +146,7 @@ textarea{min-height:230px;resize:vertical;font-size:15px}
 .reason p{margin:2px 0 0;color:var(--muted);font-size:14.5px}
 .advice{background:var(--accent-soft);border-radius:var(--r-sm);padding:14px 16px;margin-top:14px;font-size:15px}
 .report{margin-top:14px;border:1px solid var(--line);border-radius:var(--r-sm);padding:14px 16px;font-size:14.5px}
-.report b{display:block;margin-bottom:6px}.report ul{margin:0;padding-left:18px;color:var(--muted)}.report li{margin:4px 0}
+.report>b{display:block;margin-bottom:6px}.report ul{margin:0;padding-left:18px;color:var(--muted)}.report li{margin:4px 0}
 .llm{margin-top:14px;border:1px dashed var(--line2);border-radius:var(--r-sm);padding:12px 16px;font-size:14px;color:var(--muted)}
 .limit{text-align:center;padding:36px 10px}.limit h2{margin:0 0 8px;font-size:26px}.limit p{color:var(--muted);margin:0 0 18px}
 .limit .ctas{justify-content:center}

@@ -16,7 +16,7 @@ c({sender:'UPS Delivery <alerts@track-pkg.net>',subject:'Parcel on hold',text:'Y
 c({text:'Your Chase account is locked. Visit chase-alerts.com now to verify your identity.'},'Scam');
 // Text-message scams and normal texts
 c({text:'USPS: Your package could not be delivered due to an incomplete address. Confirm your address here: https://usps.parcel-redeliver.com/a8'},'Scam');
-c({text:'BANK ALERT: Your debit card has been temporarily locked due to suspicious activity. Reply YES to unlock or call 907-555-0199.'},'Suspicious');
+c({text:'BANK ALERT: Your debit card has been temporarily locked due to suspicious activity. Reply YES to unlock or call 907-555-0199.'},'Scam');
 c({text:'Hi! I am a recruiter from Amazon. Part time remote job, earn $300-$800 per day. Reply on WhatsApp +1 555 201 4455'},'Suspicious');
 c({text:'Hi Linda, is this still your number? We met at the golf club last week.'},'Suspicious');
 c({text:'Reminder: your dental cleaning is tomorrow at 9:00 AM. Reply C to confirm or call 907-555-0110 to reschedule.'},'Safe');
@@ -37,4 +37,9 @@ c({text:'FedEx: Su paquete fue entregado hoy a las 2:14 PM.'},'Safe');
 // Screenshot misreads: a real PayPal link read as "paypa1" is flagged gently, a pasted one fully
 c({text:'PayPal: You sent $25.00 to Maria Lopez. View details at https://www.paypa1.com/activity',source:'screenshot'},'Safe');
 c({text:'PayPal: You sent $25.00 to Maria Lopez. View details at https://www.paypa1.com/activity'},'Suspicious');
+// Disguised links: the real address used in front of someone else's site
+c({text:'https://paypal.com.account-verify.co/login'},'Scam');
+c({text:'Your account is locked. Verify immediately: https://chase.com.alerts-verify.top/x'},'Scam');
+c({text:'Sign in at https://www.paypal.com/signin to see your activity.', sender:'service@paypal.com'},'Safe');
+c({text:'Chase: Did you attempt a purchase of $45.12 at Target? Reply YES or NO.'},'Safe');
 console.log('Extra tests passed');
