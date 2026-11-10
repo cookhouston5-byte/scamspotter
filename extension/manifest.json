@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "ScamSpotter: Scam Checker",
+  "short_name": "ScamSpotter",
+  "version": "1.0.0",
+  "description": "Check a suspicious email, text, or link in one click. Right-click to check, or check the email you have open in Gmail or Outlook.",
+  "homepage_url": "https://scamspotter.app",
+  "icons": { "16": "icons/icon-16.png", "32": "icons/icon-32.png", "48": "icons/icon-48.png", "128": "icons/icon-128.png" },
+  "action": { "default_popup": "popup.html", "default_title": "Check with ScamSpotter", "default_icon": { "16": "icons/icon-16.png", "32": "icons/icon-32.png" } },
+  "background": { "service_worker": "background.js" },
+  "permissions": ["contextMenus", "storage", "activeTab", "scripting"],
+  "host_permissions": ["https://scamspotter.app/*"]
+}

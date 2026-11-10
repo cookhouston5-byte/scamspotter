@@ -130,3 +130,10 @@ Open it at `/agent`, or from Menu → Your plan. Free visitors see an upgrade ca
 - **Voice call:** the user writes down what the caller said; checks for voice-clone scripts (family emergency, fake boss, codes, gift cards, threats).
 
 Grok is asked not to store requests (`store:false`). Photos and video stills sent to the Agent are uploaded (unlike the regular screenshot reader); the privacy policy explains this.
+
+## Chrome extension (`extension/`)
+
+A small Manifest V3 extension: right-click "Check with ScamSpotter" on selected text or links, a toolbar popup to paste into, and "Check the email I have open" for Gmail and Outlook on the web. It calls the same `/api/analyze` endpoint as the site, and uses the team key saved in its settings. It only reads anything when the person clicks (Chrome's `activeTab` permission), so it never watches browsing.
+
+- Try it locally: Chrome → `chrome://extensions` → turn on Developer mode → **Load unpacked** → choose the `extension` folder.
+- Publish: zip the folder's contents (without `STORE.md`) and upload at the Chrome Web Store developer dashboard. `extension/STORE.md` has the listing text and the privacy-form answers.
