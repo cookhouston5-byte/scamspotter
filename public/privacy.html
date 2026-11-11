@@ -7,7 +7,7 @@
 <meta property="og:image" content="https://scamspotter.app/og.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#0a0f1a">
 <script>try{var t=localStorage.getItem('ss-theme')||'dark';if(t==='dark'||(t==='auto'&&matchMedia('(prefers-color-scheme: dark)').matches))document.documentElement.dataset.theme='dark'}catch(e){}</script>
-<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg"><link rel="apple-touch-icon" href="/icons/apple-touch-icon.png"><link rel="manifest" href="/manifest.webmanifest"><meta name="apple-mobile-web-app-title" content="ScamSpotter">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500;1,9..144,600&family=Inter:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="/styles.css">
@@ -26,19 +26,26 @@
 <symbol id="i-chat" viewBox="0 0 24 24"><path d="M5 5.5h14a1.5 1.5 0 0 1 1.5 1.5v8.5A1.5 1.5 0 0 1 19 17h-7l-4.5 3.5V17H5a1.5 1.5 0 0 1-1.5-1.5V7A1.5 1.5 0 0 1 5 5.5Z"/><path d="M8 10h8M8 13h5"/></symbol>
 <symbol id="i-mountain" viewBox="0 0 24 24"><path d="M2.5 19.5 9 8l4 7 2.5-4 6 8.5Z"/><path d="m7.3 11 1.7 1.5 1.6-1.4"/></symbol>
 <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5.5" width="18" height="13" rx="2"/><path d="m3.5 7 8.5 6 8.5-6"/></symbol>
+<symbol id="i-camera" viewBox="0 0 24 24"><path d="M4.5 7.5h3l1.5-2.5h6l1.5 2.5h3A1.5 1.5 0 0 1 21 9v9.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5V9a1.5 1.5 0 0 1 1.5-1.5Z"/><circle cx="12" cy="13.3" r="3.6"/></symbol>
 <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
 <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
 </defs></svg>
 <header class="nav"><div class="wrap"><a class="logo" href="/"><img src="/logo.svg" alt="" width="28" height="28">ScamSpotter</a>
-<nav class="nav-links" aria-label="Main"><a href="/#how">How it works</a><a href="/#pricing">Pricing</a><a href="/about">About</a><a href="/#faq">FAQ</a>
+<nav class="nav-links" aria-label="Main"><a href="/#how">How it works</a><a href="/#pricing">Pricing</a><a href="/#faq">FAQ</a><a href="/agent">Agent</a>
 <a class="btn sm" href="/check">Check a message</a>
-<button class="menu-btn" type="button" data-menu aria-controls="menu"><img src="/img/houston-avatar.jpg" alt="" width="24" height="24"><span class="lbl">Menu</span><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button></nav></div></header>
-<main><div class="app-h"><div class="wrap"><span class="tag">Legal</span><h1>Privacy Policy</h1><p>Last updated November 3, 2026</p></div></div>
+<button class="menu-btn" type="button" data-menu aria-controls="menu"><span class="lbl">Menu</span><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button></nav></div></header>
+<main><div class="app-h"><div class="wrap"><span class="tag">Legal</span><h1>Privacy Policy</h1><p>Last updated November 10, 2026</p></div></div>
 <div class="wrap legal">
 <p>ScamSpotter is a small business based in Anchorage, Alaska. This page explains what we collect when you use scamspotter.app and what we do with it. The short version: we don’t save the messages you check, and we don’t sell anything about you.</p>
 <h2>Messages you check</h2>
-<p>When you paste a message into the checker, it is sent to our server, analyzed, and the result is sent back to you. <b>We do not save the message text, sender, or subject.</b> If AI analysis is turned on, the text is also sent to our AI provider (OpenAI) to produce a second opinion. OpenAI processes it under its API data policy, which does not use API data to train its models by default.</p>
+<p>When you paste a message into the checker, it is sent to our server, analyzed, and the result is sent back to you. <b>We do not save the message text, sender, or subject.</b> For Team plan members, the text is also sent to our AI provider, xAI (Grok), to produce a second opinion. We ask xAI not to store these requests.</p>
 <p>Please don’t paste passwords, full card numbers, or other secrets into the checker.</p>
+<h2>Screenshots</h2>
+<p>When you upload or share a screenshot, <b>the image is read on your own device</b> by text-recognition software that our site sends to your browser. The image itself is never uploaded to us. Only the text read from it is sent to our server to be checked, and, like pasted messages, it isn’t saved. A screenshot shared to ScamSpotter from your phone’s Share menu is held briefly in your browser’s storage and deleted as soon as the checker opens it.</p>
+<h2>The Agent (Team plan)</h2>
+<p>When you use the Agent, what you submit (an email, a photo or video, or a description of a call) is sent to our server and checked, then discarded; <b>we don’t save it</b>. Unlike the regular screenshot checker, photos and videos you give the Agent <b>are uploaded</b>: we read the file’s hidden details on our server, and send the picture (or a few still frames from a video) to xAI (Grok) for a visual review. To check how old a website or email domain is, the Agent looks up public domain registration records (RDAP) and mail-server records (DNS); only the domain name is sent for those lookups.</p>
+<h2>The Chrome extension</h2>
+<p>The ScamSpotter extension only acts when you ask it to: when you click <b>Check it</b>, choose <b>Check with ScamSpotter</b> from the right-click menu, or click <b>Check the email I have open</b>. Only then does it read the text you chose (or the open email in Gmail or Outlook on the web, including where its links really go) and send it to scamspotter.app to be checked, the same way as pasting it on the site. It does not read your browsing, watch the pages you visit, or run in the background on websites. Your team key, if you add one, is stored only in your browser.</p>
 <h2>Free check limit</h2>
 <p>Free use is limited to a few checks per day. To enforce this, our server keeps a temporary count of checks per IP address for the current day, in memory only. It is cleared daily and whenever the server restarts.</p>
 <h2>Feedback and reviews you send</h2>
@@ -57,5 +64,5 @@
 <p>If we change this policy, we’ll update the date at the top of this page.</p>
 </div></main>
 <footer><div class="wrap"><div class="f-logo"><img src="/logo.svg" alt="" width="18" height="18">© 2026 ScamSpotter · Anchorage, Alaska</div>
-<nav aria-label="Footer"><a href="/check">Checker</a><a href="/about">About</a><a href="/#pricing">Pricing</a><a href="#" data-menu="help">Help</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="mailto:hello@scamspotter.app">hello@scamspotter.app</a></nav></div></footer>
+<nav aria-label="Footer"><a href="/check">Checker</a><a href="/agent">Agent</a><a href="/about">About</a><a href="/#pricing">Pricing</a><a href="#" data-menu="help">Help</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="mailto:hello@scamspotter.app">hello@scamspotter.app</a></nav></div></footer>
 </body></html>

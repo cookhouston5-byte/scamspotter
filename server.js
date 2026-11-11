@@ -1,6 +1,7 @@
 const express = require('express'); const fs = require('fs'); const net = require('net'); const path = require('path'); const crypto = require('crypto');
-const { analyze } = require('./engine'); const { llmAnalyze } = require('./llm');
-const { makeKey, parseKey, parseKeyFull, isActiveCustomer, stripeGet, stripePost, planInfo, verifyStripeSignature } = require('./access');
+const { analyze } = require('./engine'); const { llmAnalyze } = require('./llm'); const xai = require('./xai');
+const { emailAgent, mediaAgent, voiceAgent } = require('./agent');
+const { makeKey, parseKey, parseKeyFull, isActiveCustomer, forgetCustomer, stripeGet, stripePost, planInfo, verifyStripeSignature } = require('./access');
 const { sendEmail, notifyOwner, welcomeEmail } = require('./emails');
 
 const SITE = process.env.SITE_URL || 'https://scamspotter.app';
@@ -54,17 +55,61 @@ app.post('/api/stripe/webhook', express.raw({ type:'*/*', limit:'1mb' }), async 
       if(email){ const m = welcomeEmail({ name, key }); await sendEmail({ to: email, ...m }); }
       await notifyOwner('New trial started', { Name: name, Email: email, Customer: o.customer, Business: o.custom_fields?.map(f => f.text?.value).filter(Boolean).join(', ') });
     } else if(ev.type === 'customer.subscription.deleted'){
+      forgetCustomer(o.customer); // re-check with Stripe on the next request instead of waiting for the cache
       await notifyOwner('Subscription canceled', { Customer: o.customer, Status: o.status });
     }
   }catch(e){ console.error('webhook handling failed:', e.message); }
   res.json({ received:true });
 });
 
+// ---- Agent (Team plan): full emails, photos/videos (deepfakes), voice calls ----
+// The team check runs before the (larger) body is read, so free visitors can't upload big files.
+const AGENT_DAILY = Math.max(1, Number(process.env.AGENT_DAILY_LIMIT || 150));
+const agentUse = new Map(); // "customer|date" -> count
+async function requireTeam(req,res,next){
+  const team = await teamFromReq(req);
+  if(!team.valid){ req.resume(); return res.status(402).json({ error:'The Agent is part of the Team plan.', locked:true, badKey: team.has }); }
+  const k = team.customer + '|' + new Date().toISOString().slice(0,10); const n = agentUse.get(k) || 0;
+  if(n >= AGENT_DAILY){ req.resume(); return res.status(429).json({ error:`Your team has used today’s ${AGENT_DAILY} Agent checks. They reset at midnight UTC.` }); }
+  agentUse.set(k, n + 1); if(agentUse.size > 20000) agentUse.clear();
+  next();
+}
+const agentLimit = limiter(10, 60000, 'Too many Agent checks in a short time. Please wait a minute.');
+app.post('/api/agent/email', agentLimit, requireTeam, express.json({ limit:'4mb' }), async (req,res,next)=>{
+  try{
+    const b = req.body || {}; const raw = typeof b.raw === 'string' ? b.raw : '';
+    if(raw.trim().length < 10) return res.status(400).json({ error:'Paste the email, or upload the .eml file.' });
+    if(raw.length > 3e6) return res.status(413).json({ error:'That email is too large (3 MB max).' });
+    res.json(await emailAgent({ raw, sender: typeof b.sender === 'string' ? b.sender.slice(0,300) : '', subject: typeof b.subject === 'string' ? b.subject.slice(0,500) : '' }));
+  }catch(e){ next(e); }
+});
+app.post('/api/agent/media', agentLimit, requireTeam, express.json({ limit:'16mb' }), async (req,res,next)=>{
+  try{
+    const b = req.body || {}; const mime = String(b.mime || '').toLowerCase().slice(0,60);
+    if(!/^(image|video)\//.test(mime)) return res.status(400).json({ error:'Choose a photo or video file.' });
+    const file = typeof b.file === 'string' ? Buffer.from(b.file, 'base64') : null;
+    const frames = Array.isArray(b.frames) ? b.frames.filter(f => typeof f === 'string' && f.length < 3e6).slice(0,4) : [];
+    if(!file?.length && !frames.length) return res.status(400).json({ error:'We couldn’t read that file. Try a JPG, PNG, or MP4.' });
+    res.json(await mediaAgent({ file, mime, name: String(b.name || '').slice(0,120), frames, note: typeof b.note === 'string' ? b.note.slice(0,2000) : '' }));
+  }catch(e){ next(e); }
+});
+app.post('/api/agent/voice', agentLimit, requireTeam, express.json({ limit:'200kb' }), async (req,res,next)=>{
+  try{
+    const b = req.body || {}; const transcript = typeof b.transcript === 'string' ? b.transcript : '';
+    if(transcript.trim().length < 10) return res.status(400).json({ error:'Write down what the caller said (a sentence or two is enough).' });
+    res.json(await voiceAgent({ transcript: transcript.slice(0,20000), caller: typeof b.caller === 'string' ? b.caller.slice(0,100) : '' }));
+  }catch(e){ next(e); }
+});
+
 app.use(express.json({ limit:'200kb' }));
 app.get('/subscribed', (req,res)=>res.redirect(302, '/welcome'));
+// Shares are normally handled on the phone by sw.js. If one reaches the server, ignore the upload and send the user to the checker.
+app.post('/share-target', (req,res)=>{ req.resume(); res.redirect(303, '/check?shared=0'); });
+app.get('/sw.js', (req,res,next)=>{ res.set('Cache-Control','no-cache'); next(); });
+app.use('/vendor', express.static(path.join(__dirname,'public','vendor'), { maxAge:'30d', immutable:true }));
 app.use(express.static(path.join(__dirname,'public'), { extensions:['html'] }));
 
-app.get('/api/health', (req,res)=>res.json({ ok:true, llm: !!process.env.OPENAI_API_KEY }));
+app.get('/api/health', (req,res)=>res.json({ ok:true, ai: xai.enabled(), agent:true }));
 
 // Plan / quota helpers
 const today = () => new Date().toISOString().slice(0,10);
@@ -78,7 +123,8 @@ async function teamFromReq(req){
 }
 
 app.post('/api/analyze', limiter(30, 60000, 'Too many checks in a short time. Please wait a minute and try again.'), async (req,res)=>{
-  const { text='', sender='', subject='' } = req.body||{};
+  const b = req.body || {}; const str = v => typeof v === 'string' ? v : '';
+  const text = str(b.text), sender = str(b.sender).slice(0,300), subject = str(b.subject).slice(0,500); const source = req.body?.source === 'screenshot' ? 'screenshot' : '';
   if(!String(text).trim()) return res.status(400).json({ error:'Paste the message text to check.' });
   if(String(text).length > 50000) return res.status(413).json({ error:'Message too long (50,000 characters max).' });
   const team = await teamFromReq(req);
@@ -91,8 +137,8 @@ app.post('/api/analyze', limiter(30, 60000, 'Too many checks in a short time. Pl
     if(freeUse.size > 50000){ const d = '|' + today(); for(const x of freeUse.keys()) if(!x.endsWith(d)) freeUse.delete(x); }
     plan = { type:'free', remaining: left - 1, limit: FREE_PER_DAY, badKey: team.has };
   }
-  const h = analyze({ text, sender, subject });
-  const llm = await llmAnalyze({ text, sender, subject }, h);
+  const h = analyze({ text, sender, subject, source });
+  const llm = team.valid ? await llmAnalyze({ text, sender, subject }, h) : null; // Grok second opinion is a Team plan feature
   let result = { ...h, llm, plan };
   if(llm && !llm.error && llm.verdict){
     // blend: weighted average, never lower than a strong rule-based hit
@@ -205,7 +251,7 @@ function envReport(){
   miss('RESEND_API_KEY', 'emails are logged instead of sent.');
   miss('OWNER_EMAIL', 'feedback, reviews and new trials are not emailed to you.');
   miss('DATA_DIR', 'feedback/reviews are written to ./data, which is wiped on every Render deploy.');
-  miss('OPENAI_API_KEY', 'AI second opinion is off; rule-based checks only.');
+  miss('XAI_API_KEY', 'Grok is off: no AI second opinion, and the Agent runs its automatic checks only.');
 }
 const PORT = process.env.PORT || 3000;
 if(require.main===module){ envReport(); app.listen(PORT, ()=>console.log('ScamSpotter on http://localhost:'+PORT)); }

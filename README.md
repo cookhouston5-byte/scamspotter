@@ -1,6 +1,6 @@
 # ScamSpotter
 
-An AI scam checker for small businesses, live at https://scamspotter.app. Staff paste a suspicious email or text and get a **verdict (Safe / Suspicious / Scam)**, a **0–100 risk score**, and **plain-English reasons**.
+An AI scam checker for small businesses, live at https://scamspotter.app. Staff paste a suspicious text, email, or link, or upload a screenshot, and get a **verdict (Safe / Suspicious / Scam)**, a **0–100 risk score**, and **plain-English reasons**.
 
 Founder: Houston Cook, Anchorage, Alaska.
 
@@ -8,7 +8,11 @@ Founder: Houston Cook, Anchorage, Alaska.
 - Node 18+ / Express (`server.js`), with no database
 - Static frontend in `public/` (plain HTML/CSS/JS, no build step)
 - `engine.js`: rule-based heuristic engine that needs no API key
-- `llm.js`: optional OpenAI second opinion, used only if `OPENAI_API_KEY` is set
+- `xai.js`: Grok (xAI) client, Responses API with a small tool loop; used only if `XAI_API_KEY` is set
+- `llm.js`: Grok second opinion on regular checks (Team plan)
+- `agent.js`: the Agent (Team plan): full-email investigation (SPF/DKIM/DMARC, Reply-To, hidden links, attachments, domain age via RDAP), photo/video deepfake checks, voice-call checks
+- `mail.js`: small email/MIME reader for pasted originals and .eml files
+- `media.js`: reads image/video metadata for AI-generator labels, Content Credentials (C2PA), editing apps, and camera details
 - `access.js`: team access keys (signed with `ACCESS_KEY_SECRET`) and Stripe helpers; Stripe is the source of truth for subscriptions
 - `emails.js`: welcome email and owner notifications through Resend
 
@@ -29,6 +33,16 @@ npm install
 npm start                 # http://localhost:3000  (checker at /check)
 npm test                  # engine, regression, and API tests
 ```
+
+## Screenshots and phone sharing
+- **Upload a screenshot** (checker and homepage): the image is read *on the user's device* by Tesseract OCR, served from
+  `public/vendor/tesseract/` (tesseract.js 5.1.1, Apache-2.0, English data). The image never leaves the device; only the
+  recognized text is sent to `/api/analyze` with `source: "screenshot"`. Drag-and-drop and pasting an image also work.
+- **Install + Share menu:** `manifest.webmanifest` + `sw.js` make the site installable ("Add to Home Screen"). On Android,
+  ScamSpotter then appears in the Share menu; `sw.js` receives the shared text/image, holds it in the browser cache only until
+  `/check?shared=1` reads it, then deletes it. (iPhone doesn't support web share targets; iPhone users upload the screenshot.)
+- Text-message rules in `engine.js`: toll/delivery texts, card/account lock alerts, "reply YES to unlock", job/easy-money
+  offers, and "wrong number" openers, in English and Spanish (matched without accents).
 
 ## Plans
 - **Free:** `FREE_CHECKS_PER_DAY` (default 5) checks per IP per day, counted in memory.
@@ -62,13 +76,15 @@ The app starts and serves the free checker with **none** of these set; on boot i
 **Optional**
 | Variable | What it's for |
 |---|---|
-| `OPENAI_API_KEY`, `OPENAI_MODEL` | AI second opinion on top of the rule-based check. |
 | `STRIPE_PORTAL_LOGIN_URL` | Stripe's no-code customer portal login link, for customers who lost their key. |
 | `FREE_CHECKS_PER_DAY` | Free daily limit (default 5). |
 | `TRIAL_DAYS` | Trial length used for the fail-safe window (default 14). |
 | `FEEDBACK_TOKEN` | Lets you read stored feedback at `GET /api/feedback` (add `?type=reviews` for reviews). |
 | `EMAIL_FROM`, `EMAIL_REPLY_TO`, `SITE_URL` | Override sender, reply-to, and site URL. |
 | `TRUST_PROXY`, `CLOUDFLARE_IPS` | Override proxy hop count (default 1) or the Cloudflare CIDR list. |
+| `XAI_API_KEY` | Grok API key from console.x.ai. Turns on Grok for the Team plan: the AI second opinion and the Agent's AI review (including looking at photos and video frames). Without it, the Agent still runs its automatic checks. |
+| `XAI_MODEL` | Optional. Grok model, default `grok-4.7`. |
+| `AGENT_DAILY_LIMIT` | Optional. Agent checks per team per day (default 150), to keep Grok costs predictable. |
 
 ## Go-live checklist
 1. **Stripe → Payment Link → After payment:** redirect to `https://scamspotter.app/welcome?session_id={CHECKOUT_SESSION_ID}`.
@@ -100,7 +116,7 @@ With an LLM, the final score is the average of the two scores, and it can never 
 - `POST /api/feedback`, `POST /api/reviews` → stored in `DATA_DIR` and emailed to `OWNER_EMAIL`
 
 ## Deploy
-**Render (recommended):** create a new Web Service from the repo. Set Build to `npm install` and Start to `npm start`. Add `OPENAI_API_KEY` if you want AI analysis. See the go-live checklist above.
+**Render (recommended):** create a new Web Service from the repo. Set Build to `npm install` and Start to `npm start`. Add `XAI_API_KEY` to turn on Grok for Team plan members. See the go-live checklist above.
 
 **Vercel:** `vercel.json` is included and `server.js` exports the app. Vercel's filesystem is ephemeral, so rely on `OWNER_EMAIL` for feedback and reviews there.
 
@@ -114,8 +130,28 @@ With an LLM, the final score is the average of the two scores, and it can never 
 5. Add a shared team history. Retain or delete message bodies according to a published privacy policy.
 
 ## Known limitations
-- Heuristics are pattern-based and English-only. They can miss novel or well-written scams and can flag legit messages that discuss payments urgently. A result is guidance, not a guarantee.
+- Rules cover English and Spanish messages; results are explained in English. Screenshot text can contain small reading errors (e.g. l vs 1):
+  common link misreads are repaired, a lookalike link that differs only by an OCR-confusable letter is flagged more gently, and the
+  result lists the links it read so users can compare.
+- Heuristics are pattern-based. They can miss novel or well-written scams and can flag legit messages that discuss payments urgently. A result is guidance, not a guarantee.
 - Pasted text has no email headers, so real SPF/DKIM spoof checks aren't possible yet.
 - Links aren't fetched or checked against threat-intel feeds (e.g. Google Safe Browsing).
 - No individual accounts: a whole team shares one access key.
 - Rate limits and the free daily count are in memory per IP and reset on restart.
+
+## The Agent (Team plan)
+
+Open it at `/agent`, or from Menu → Your plan. Free visitors see an upgrade card; the server refuses Agent requests (and large uploads) without a valid team key.
+
+- **Email:** paste the original email (Gmail: ⋮ → Show original) or upload a `.eml`. Checks the mail server's SPF/DKIM/DMARC results, display-name tricks, Reply-To and bounce addresses, links whose text and destination differ, risky attachments, the wording rules, and how old each domain is (public RDAP records, with a DNS check). With Grok on, Grok reviews the evidence and can look up more domains itself.
+- **Photo or video:** looks inside the file for AI labels, AI tool names, generation settings, Content Credentials, editing apps, and camera details. With Grok on, Grok looks at the picture (or 4 stills from a video) for signs of AI generation, face swaps, and fake documents. No tool can prove a photo or video is real; the page says so.
+- **Voice call:** the user writes down what the caller said; checks for voice-clone scripts (family emergency, fake boss, codes, gift cards, threats).
+
+Grok is asked not to store requests (`store:false`). Photos and video stills sent to the Agent are uploaded (unlike the regular screenshot reader); the privacy policy explains this.
+
+## Chrome extension (`extension/`)
+
+A small Manifest V3 extension: right-click "Check with ScamSpotter" on selected text or links, a toolbar popup to paste into, and "Check the email I have open" for Gmail and Outlook on the web. It calls the same `/api/analyze` endpoint as the site, and uses the team key saved in its settings. It only reads anything when the person clicks (Chrome's `activeTab` permission), so it never watches browsing.
+
+- Try it locally: Chrome → `chrome://extensions` → turn on Developer mode → **Load unpacked** → choose the `extension` folder.
+- Publish: zip the folder's contents (without `STORE.md`) and upload at the Chrome Web Store developer dashboard. `extension/STORE.md` has the listing text and the privacy-form answers.

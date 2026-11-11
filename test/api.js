@@ -44,6 +44,11 @@ let pass = 0; const ok = (c, m) => { assert.ok(c, m); pass++; console.log('PASS 
     r = await post('/api/analyze', { text:'Hello' }, { ...ip(1), 'X-Team-Key': 'SS-cus_FAKE.aaaaaaaaaaaaaaaaaaaaaa' });
     ok(r.status === 402, 'invalid team key does not bypass the limit');
     r = await post('/api/analyze', { text:'' }, ip(3)); ok(r.status === 400, 'empty message rejected');
+    // A fake CF-Connecting-IP from a non-Cloudflare address must not reset the free limit.
+    const direct = n => ({ 'X-Forwarded-For': '198.51.100.7', 'CF-Connecting-IP': '192.0.2.' + n });
+    for(let i = 1; i <= 3; i++) await post('/api/analyze', { text:'Hello' }, direct(i));
+    r = await post('/api/analyze', { text:'Hello' }, direct(99)); ok(r.status === 402, 'spoofed CF-Connecting-IP ignored when not from Cloudflare');
+    r = await post('/api/analyze', { text:'Hello' }, { 'X-Forwarded-For': '104.16.0.5', 'CF-Connecting-IP': '192.0.2.200' }); ok(r.status === 200, 'CF-Connecting-IP trusted from a Cloudflare address');
 
     // plan endpoint
     j = await (await fetch(B + '/api/plan', { headers: ip(4) })).json(); ok(j.plan === 'free' && j.remaining === 3 && j.limit === 3, '/api/plan free status');

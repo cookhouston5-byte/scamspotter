@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ScamSpotter</title>
+<link rel="stylesheet" href="popup.css">
+</head>
+<body>
+<header>
+  <img src="icons/icon-32.png" alt="" width="22" height="22"><b>ScamSpotter</b>
+  <button class="icon" id="gear" type="button" aria-label="Settings" aria-expanded="false" aria-controls="settings">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>
+  </button>
+</header>
+
+<section id="settings" hidden>
+  <label for="key">Team access key (Team plan)</label>
+  <div class="row"><input id="key" placeholder="SS-cus_…" autocomplete="off" spellcheck="false"><button id="save" type="button" class="btn sm">Save</button></div>
+  <p class="msg" id="keymsg" role="status"></p>
+  <p class="small">Your key is saved only in this browser. <a href="https://scamspotter.app/?menu=plan" target="_blank" rel="noopener">Your plan</a></p>
+</section>
+
+<main>
+  <button class="btn ghost block" id="grab" type="button" hidden>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5.5" width="18" height="13" rx="2"/><path d="m3.5 7 8.5 6 8.5-6"/></svg>
+    <span>Check the email I have open</span>
+  </button>
+  <form id="f">
+    <label for="text" class="sr">Message to check</label>
+    <textarea id="text" placeholder="Paste a suspicious text, email, or link…"></textarea>
+    <button class="btn block" id="go" type="submit">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="1.5"/><path d="M12 2.5v4M12 17.5v4M2.5 12h4M17.5 12h4"/></svg>
+      <span>Check it</span>
+    </button>
+  </form>
+  <div id="out" aria-live="polite"></div>
+  <p class="tip" id="tip">Tip: select text or right-click a link on any page and choose <b>Check with ScamSpotter</b>.</p>
+</main>
+
+<footer><span id="quota"></span><a href="https://scamspotter.app/check" target="_blank" rel="noopener">Open the full checker</a></footer>
+<script src="popup.js"></script>
+</body>
+</html>

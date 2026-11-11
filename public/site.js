@@ -55,8 +55,9 @@ function renderPlan(){
     else if(st === 'unverified') detail = 'We couldn’t confirm this team’s subscription. Email ' + CONTACT + ' and we’ll sort it out.';
     else if(!p.details) detail = 'Unlimited checks for your whole team.';
     h += `<div class="plan-card"><div class="pt"><b>Team plan</b><span class="status ${cls}">${esc(label)}</span></div><div class="pd">${esc(detail)}</div></div>`;
+    h += `<a class="btn ghost block" href="/agent" style="margin-bottom:12px">Open the Agent: emails, deepfakes, calls</a>`;
     h += `<div class="stack">${p.canManage ? `<button class="btn block" type="button" data-portal>Manage subscription</button>` : ''}
-      <p style="font-size:13px;margin:0">Update your card, download invoices, or cancel. Opens Stripe’s secure billing page.</p></div>`;
+      <p style="font-size:13px;margin:0">${p.canManage ? 'Update your card, download invoices, or cancel. Opens Stripe’s secure billing page.' : `To update your card or cancel, email <a href="mailto:${CONTACT}">${CONTACT}</a> and we’ll take care of it.`}</p></div>`;
     h += `<details style="margin-top:12px"><summary style="cursor:pointer;font-size:14px">Team access key</summary><div style="padding-top:8px">${keyForm('Saved on this device')}<button class="linkbtn" type="button" data-copy style="font-size:13.5px">Copy key to share with your team</button> · <button class="linkbtn" type="button" data-forget style="font-size:13.5px">Remove from this device</button></div></details>`;
   } else {
     const left = p.remaining ?? 0, lim = p.limit ?? 5;
@@ -78,7 +79,7 @@ function renderPlan(){
   const portal = el.querySelector('[data-portal]');
   if(portal) portal.addEventListener('click', async () => { portal.disabled = true; portal.textContent = 'Opening billing…';
     try{ const r = await fetch('/api/billing-portal', { method:'POST', headers: headers() }); const j = await r.json(); if(j.url){ location.href = j.url; return; } throw new Error(j.error || 'Couldn’t open billing.'); }
-    catch(err){ portal.disabled = false; portal.textContent = 'Manage subscription'; alert(err.message); } });
+    catch(err){ portal.disabled = false; portal.textContent = 'Manage subscription'; alert(friendly(err)); } });
   const copy = el.querySelector('[data-copy]');
   if(copy) copy.addEventListener('click', async () => { try{ await navigator.clipboard.writeText(getKey()); copy.textContent = 'Copied!'; }catch(e){ copy.textContent = 'Select the key above and copy it'; } });
   const forget = el.querySelector('[data-forget]');
@@ -118,7 +119,12 @@ function build(){
    <p style="font-size:12.5px;margin:0">Reviews are read by Houston before they’re posted.</p></form></details></div></details>
  <details class="dsec" id="m-help"><summary>${I.help}Help</summary><div class="in">
   <p><b style="color:var(--ink)">How to check a message</b></p>
-  <ol class="helplist"><li>Copy the whole email or text.</li><li>Paste it into the <a href="/check">checker</a>. Add the sender and subject if you have them.</li><li>Read the reasons, then follow “What to do”.</li></ol>
+  <ol class="helplist"><li>Copy the text, email, or link, or take a screenshot of it.</li><li>Paste it into the <a href="/check">checker</a>, or tap <b>Upload a screenshot</b>.</li><li>Read the reasons, then follow “What to do”.</li></ol>
+  <p style="margin-top:12px"><b style="color:var(--ink)">Deeper checks (Team plan)</b></p><p>The <a href="/agent">Agent</a> investigates full emails, photos and videos that might be deepfakes, and suspicious phone calls.</p>
+  <p style="margin-top:12px"><b style="color:var(--ink)">Put ScamSpotter on your phone</b></p>
+  <div id="install-box"></div>
+  <ul class="helplist"><li><b>iPhone:</b> open scamspotter.app in Safari, tap Share, then “Add to Home Screen”.</li>
+  <li><b>Android:</b> open it in Chrome, tap ⋮ then “Install app” or “Add to Home screen”. Then you can share a text or screenshot straight to ScamSpotter from the Share menu.</li></ul>
   <p style="margin-top:12px"><b style="color:var(--ink)">Already clicked, paid, or replied?</b></p>
   <ul class="helplist"><li>Money sent: call your bank right away and ask them to stop or recall it. Then report it at <a href="https://www.ic3.gov" rel="noopener">ic3.gov</a>.</li>
   <li>Entered a password: change it now, and turn on two-step login.</li><li>Report the scam at <a href="https://reportfraud.ftc.gov" rel="noopener">reportfraud.ftc.gov</a>.</li>
@@ -149,10 +155,39 @@ function build(){
     b.disabled = true; m.className = 'formmsg'; m.textContent = 'Sending…';
     try{ const r = await fetch('/api/reviews', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(data) }); const j = await r.json().catch(() => ({}));
       if(!r.ok) throw new Error(j.error || 'Couldn’t send. Please try again.'); rv.reset(); m.className = 'formmsg ok'; m.textContent = 'Thank you! Houston will read it soon.'; }
-    catch(err){ m.className = 'formmsg err'; m.textContent = err.message; } finally { b.disabled = false; } });
+    catch(err){ m.className = 'formmsg err'; m.textContent = friendly(err); } finally { b.disabled = false; } });
   const q = new URLSearchParams(location.search).get('menu'); if(q) open(q);
+  renderInstall();
 }
-if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', build); else build();
 
-window.SS = { getKey, headers, refreshPlan, updateQuota, onPlan: f => listeners.push(f), setKey: k => { store.set('ss-team-key', k); refreshPlan(); }, trialUrl: STRIPE_TRIAL };
+// ---- install as an app (home screen + Share menu) ----
+let installEvt = null;
+const standalone = () => (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; renderInstall(); });
+window.addEventListener('appinstalled', () => { installEvt = null; renderInstall(); });
+function renderInstall(){
+  const box = document.getElementById('install-box'); if(!box) return;
+  if(standalone()){ box.innerHTML = '<p style="color:var(--safe)">ScamSpotter is installed on this device.</p>'; return; }
+  box.innerHTML = installEvt ? '<button class="btn sm" type="button" id="install-btn" style="margin-bottom:8px">Install ScamSpotter</button>' : '';
+  const b = document.getElementById('install-btn');
+  if(b) b.onclick = async () => { installEvt.prompt(); try{ await installEvt.userChoice; }catch(e){} installEvt = null; renderInstall(); };
+}
+// One-time tip on phones, on the checker page only.
+function installTip(){
+  const app = document.querySelector('.app'); if(!app || standalone() || store.get('ss-tip-done')) return;
+  if(!/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) return;
+  const ios = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const w = document.createElement('div'); w.className = 'wrap'; w.style.paddingTop = '18px'; const t = document.createElement('div'); t.className = 'install-tip'; t.setAttribute('role','note'); w.appendChild(t);
+  t.innerHTML = `<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="6.5" y="2.5" width="11" height="19" rx="2"/><path d="M10.5 18.5h3"/></svg><div><b>Tip:</b> add ScamSpotter to your home screen${ios ? ' (Share → Add to Home Screen)' : ''} to check texts and screenshots in one tap. <button class="linkbtn" type="button" data-menu="help">How</button></div><button class="x2" type="button" aria-label="Dismiss tip">×</button>`;
+  t.querySelector('.x2').onclick = () => { store.set('ss-tip-done','1'); w.remove(); };
+  app.parentNode.insertBefore(w, app);
+}
+if('serviceWorker' in navigator && location.protocol !== 'file:') window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js').catch(() => {}); });
+const boot = () => { build(); installTip(); };
+if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
+
+// Plain-English error text: network failures and unreadable replies shouldn't show browser jargon like "Failed to fetch".
+const friendly = err => (err instanceof TypeError || /fetch|network|load failed/i.test(err && err.message || '')) ? 'Couldn’t reach ScamSpotter. Check your internet connection and try again.'
+  : err instanceof SyntaxError ? 'Something went wrong on our end. Please try again in a minute.' : (err && err.message) || 'Something went wrong. Please try again.';
+window.SS = { friendly, getKey, headers, refreshPlan, updateQuota, onPlan: f => listeners.push(f), setKey: k => { store.set('ss-team-key', k); refreshPlan(); }, trialUrl: STRIPE_TRIAL };
 })();

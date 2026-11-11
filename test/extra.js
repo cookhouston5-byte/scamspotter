@@ -14,4 +14,36 @@ c({sender:'Chase Smith <chase@smithlawak.com>',subject:'Monday',text:'See you Mo
 c({sender:'Chase Bank Alerts <alerts@secure-mail-center.net>',subject:'Account locked',text:'Your account is locked. Verify your identity at https://chase-verify.top/login immediately.'},'Scam');
 c({sender:'UPS Delivery <alerts@track-pkg.net>',subject:'Parcel on hold',text:'Your account is on hold. Pay the redelivery fee urgently at https://ups-redelivery.top/pay'},'Scam');
 c({text:'Your Chase account is locked. Visit chase-alerts.com now to verify your identity.'},'Scam');
+// Text-message scams and normal texts
+c({text:'USPS: Your package could not be delivered due to an incomplete address. Confirm your address here: https://usps.parcel-redeliver.com/a8'},'Scam');
+c({text:'BANK ALERT: Your debit card has been temporarily locked due to suspicious activity. Reply YES to unlock or call 907-555-0199.'},'Scam');
+c({text:'Hi! I am a recruiter from Amazon. Part time remote job, earn $300-$800 per day. Reply on WhatsApp +1 555 201 4455'},'Suspicious');
+c({text:'Hi Linda, is this still your number? We met at the golf club last week.'},'Suspicious');
+c({text:'Reminder: your dental cleaning is tomorrow at 9:00 AM. Reply C to confirm or call 907-555-0110 to reschedule.'},'Safe');
+c({text:'Your Chase verification code is 482913. Do not share this code with anyone. We will never call you to ask for it.'},'Safe');
+c({text:'FedEx: Your package was delivered today at 2:14 PM. Track at https://www.fedex.com/fedextrack'},'Safe');
+c({text:'Wells Fargo: Did you attempt a $52.10 purchase at Target? Reply YES or NO. Reply STOP to opt out.'},'Safe');
+c({text:'Hey, my cousin is hiring for a part-time job at the cafe if you know anyone.'},'Safe');
+{ const r = analyze({ text:'Running 10 min late, sorry!', source:'screenshot' }); assert.ok(r.reasons.some(x => x.category === 'Read from a screenshot')); console.log('PASS  screenshot note added'); }
+// Spanish
+c({text:'Servicios de Peaje: Tiene un saldo de peaje pendiente de $4.15. Pague dentro de 24 horas para evitar una multa de $50: https://ezdrive-peaje.top/pagar'},'Scam');
+c({text:'ALERTA BANCARIA: Su tarjeta de débito ha sido bloqueada temporalmente por actividad sospechosa. Responda SI para desbloquear o llame al 907-555-0199.'},'Scam');
+c({sender:'Dana Whitfield <dana.ceo.whitfield@gmail.com>',text:'¿Estás disponible? Estoy en una reunión y no puedo hablar. Necesito que compres 5 tarjetas de regalo de Apple urgente. No le digas a nadie.'},'Scam');
+c({sender:'Proveedora Norte <cuentas@proveedora-norte-pagos.com>',subject:'URGENTE: nuevos datos bancarios',text:'Le informamos que cambiamos de banco. Use los nuevos datos bancarios para la factura vencida #4471 y haga la transferencia bancaria hoy mismo.'},'Scam');
+c({text:'Hola, trabajo de medio tiempo desde casa. Gane $300 al día. Escríbenos por WhatsApp.'},'Suspicious');
+c({text:'Recordatorio: su cita con el dentista es mañana a las 9:00 AM. Responda C para confirmar o llame al 907-555-0110.'},'Safe');
+c({sender:'Sam <sam@acmeplumbing.com>',text:'Hola, adjunto la factura 2231 por la reparación de la semana pasada. El pago vence en 30 días, como siempre. Gracias.'},'Safe');
+c({text:'FedEx: Su paquete fue entregado hoy a las 2:14 PM.'},'Safe');
+// Screenshot misreads: a real PayPal link read as "paypa1" is flagged gently, a pasted one fully
+c({text:'PayPal: You sent $25.00 to Maria Lopez. View details at https://www.paypa1.com/activity',source:'screenshot'},'Safe');
+c({text:'PayPal: You sent $25.00 to Maria Lopez. View details at https://www.paypa1.com/activity'},'Suspicious');
+// Disguised links: the real address used in front of someone else's site
+c({text:'https://paypal.com.account-verify.co/login'},'Scam');
+c({text:'Your account is locked. Verify immediately: https://chase.com.alerts-verify.top/x'},'Scam');
+c({text:'Sign in at https://www.paypal.com/signin to see your activity.', sender:'service@paypal.com'},'Safe');
+c({text:'Chase: Did you attempt a purchase of $45.12 at Target? Reply YES or NO.'},'Safe');
+// Code texts: a real code text is Safe; asking for the code is a Scam
+c({text:'Your Chase verification code is 482913. Do not share this code with anyone.'},'Safe');
+c({text:'Never give anyone your code. Your Google verification code is G-123456.'},'Safe');
+c({text:'Hi, I sent you a code by mistake, can you send me the verification code?'},'Scam');
 console.log('Extra tests passed');

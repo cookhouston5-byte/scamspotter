@@ -2,7 +2,10 @@
 (function(){
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const form = $('hs'), ta = $('hs-text'), out = $('hs-out'), go = $('hs-go'), quota = $('hs-quota');
+const form = $('hs'), ta = $('hs-text'), out = $('hs-out'), go = $('hs-go'), quota = $('hs-quota'), status = $('hs-status');
+let source = '';
+ta.addEventListener('input', () => { if(!ta.value.trim()) source = ''; });
+ta.addEventListener('keydown', e => { if(e.key === 'Enter' && (e.ctrlKey || e.metaKey)){ e.preventDefault(); form.requestSubmit(); } }); // Ctrl/⌘+Enter checks
 
 function showQuota(p){ if(!p) return;
   if(p.plan === 'team' && p.httpStatus !== 401) quota.textContent = 'Team plan · unlimited';
@@ -12,7 +15,7 @@ if(window.SS){ SS.onPlan(showQuota); SS.refreshPlan(); }
 document.querySelector('[data-focus-scan]').addEventListener('click', e => { e.preventDefault(); $('scan').scrollIntoView({ behavior:'smooth', block:'center' }); setTimeout(() => ta.focus({ preventScroll:true }), 350); });
 let si = 0;
 $('hs-sample').addEventListener('click', () => { const s = SAMPLES[si++ % SAMPLES.length];
-  ta.value = `From: ${s.sender}\nSubject: ${s.subject}\n\n${s.text}`; ta.focus(); });
+  source = ''; status.textContent = ''; ta.value = (s.sender ? `From: ${s.sender}\n` : '') + (s.subject ? `Subject: ${s.subject}\n` : '') + (s.sender || s.subject ? '\n' : '') + s.text; ta.focus(); });
 
 // Pull "From:" and "Subject:" lines out of a pasted email so the sender checks can run.
 function split(raw){
@@ -26,7 +29,7 @@ function split(raw){
 
 form.addEventListener('submit', async e => {
   e.preventDefault(); const raw = ta.value.trim(); if(!raw){ ta.focus(); return; }
-  const input = split(raw); if(!input.text) input.text = raw;
+  const input = split(raw); if(!input.text) input.text = raw; input.source = source;
   go.disabled = true; go.lastChild.textContent = 'Scanning…'; out.innerHTML = '';
   try{
     const r = await fetch('/api/analyze', { method:'POST', headers: SS.headers({ 'Content-Type':'application/json' }), body: JSON.stringify(input) });
@@ -39,9 +42,21 @@ form.addEventListener('submit', async e => {
     out.innerHTML = `<div class="mini"><div class="res"><span class="pill ${j.verdict}">${j.verdict}</span><span class="score">Risk ${j.score}/100</span></div>
       ${top.length ? '<ul>' + top.map(x => '<li>' + esc(x.category) + '</li>').join('') + '</ul>' : '<p style="margin:10px 0 0;color:var(--muted);font-size:14px">No common scam patterns found.</p>'}
       <a class="more" href="/check?from=home">See the full report and what to do →</a></div>`;
-  }catch(err){ out.innerHTML = `<div class="mini"><p style="margin:0;color:var(--bad)">${esc(err.message)}</p></div>`; }
+  }catch(err){ out.innerHTML = `<div class="mini"><p style="margin:0;color:var(--bad)">${esc(SS.friendly(err))}</p></div>`; }
   finally{ go.disabled = false; go.lastChild.textContent = 'Check it'; }
 });
+
+// Screenshot: read on this device, then checked
+async function fromImage(file){
+  const b = $('hs-shot'); b.disabled = true; status.style.color = '';
+  try{ const text = await SSOCR.read(file, m => { status.textContent = m; });
+    ta.value = text; source = 'screenshot'; status.textContent = 'Read from your screenshot. Never uploaded.'; form.requestSubmit(); }
+  catch(err){ status.style.color = 'var(--bad)'; status.textContent = SS.friendly(err); }
+  finally{ b.disabled = false; $('hs-file').value = ''; } }
+$('hs-shot').addEventListener('click', () => $('hs-file').click());
+['pointerenter','focus','touchstart'].forEach(t => $('hs-shot').addEventListener(t, () => SSOCR.warm(), { once:true, passive:true }));
+$('hs-file').addEventListener('change', e => { const f = e.target.files[0]; if(f) fromImage(f); });
+SSOCR.attach(form, fromImage);
 
 // Feedback form
 const fb = $('fb'), fm = $('fb-msg'), fo = $('fb-msgout'), fc = $('fb-count');
@@ -52,7 +67,7 @@ fb.addEventListener('submit', async e => { e.preventDefault(); const msg = fm.va
   try{ const r = await fetch('/api/feedback', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ name: fb.elements.name.value, email: fb.elements.email.value, message: msg, website: fb.elements.website.value, page: location.pathname }) });
     const j = await r.json().catch(() => ({})); if(!r.ok) throw new Error(j.error || 'Could not send. Please try again.');
     fb.reset(); fc.textContent = '0 / 2000'; fo.className = 'formmsg ok'; fo.textContent = 'Thanks! Your feedback was sent to Houston.'; }
-  catch(err){ fo.className = 'formmsg err'; fo.textContent = err.message; }
+  catch(err){ fo.className = 'formmsg err'; fo.textContent = SS.friendly(err); }
   finally{ b.disabled = false; b.textContent = 'Send feedback'; } });
 
 // Old Stripe redirect (?subscribed=1) → the welcome page

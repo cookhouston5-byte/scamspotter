@@ -19,9 +19,9 @@ const RULES = [
     why:'Asks for a wire, ACH, crypto, Zelle/Venmo/Cash App, or money-transfer payment — methods that are hard or impossible to reverse.' },
   { id:'invoice', cat:'Invoice / payment demand', w:10, re: /\b(overdue|past due|outstanding (?:invoice|balance|payment)|unpaid invoice|invoice (?:#|no\.?|number)|payment (?:is )?(?:due|required|overdue)|remit payment|remit (?:the )?(?:balance|amount|funds|payment)?|final invoice|collections?)\b/i,
     why:'Pushes an invoice or overdue payment. Fake invoices are common — check that the vendor, amount, and PO match your records.' },
-  { id:'credentials', cat:'Credential request', w:20, re: /\b(verify your (?:account|identity|password|login|information)|confirm your (?:password|login|credentials|account|identity)|(?:re-?)?enter your (?:password|credentials|login)|login to (?:avoid|restore|verify)|reset your password|update your (?:password|payment (?:method|information)|billing)|unusual (?:sign-?in|login|activity)|validate your)\b/i,
+  { id:'credentials', cat:'Credential request', w:20, re: /\b(verify your (?:account|identity|password|login|information)|confirm your (?:password|login|credentials|account|identity)|(?:re-?)?enter your (?:password|credentials|login)|login to (?:avoid|restore|verify)|reset your password|update your (?:password|payment (?:method|information)|billing)|unusual (?:sign-?in|login)(?: activity| attempt)?|validate your)\b/i,
     why:'Asks you to log in, verify, or "confirm" your account or password — the core move of phishing.' },
-  { id:'sensitive', cat:'Sensitive data request', w:18, re: /\b(social security|ssn|w-?2s?|tax forms?|employee (?:list|records|data)|bank (?:login|password)|pin (?:number|code)|one.time (?:code|passcode)|verification code|2fa code|mfa code|security code|card number|cvv)\b/i,
+  { id:'sensitive', cat:'Sensitive data request', w:18, re: /\b(social security|ssn|w-?2s?|tax forms?|employee (?:list|records|data)|bank (?:login|password)|pin (?:number|code)|card number|cvv)\b/i,
     why:'Asks for sensitive information (SSNs, W-2s, passwords, one-time codes, card numbers). Never send these by email or text.' },
   { id:'techsupport', cat:'Fake tech support', w:22, re: /\b(your (?:computer|pc|device|system) (?:is|has been) (?:infected|compromised|hacked|locked)|virus(?:es)? (?:detected|found)|call (?:our )?(?:support|technician|microsoft|apple|help desk)|toll.free|remote access|anydesk|teamviewer|ultraviewer|logmein|renewal (?:of|for) (?:your )?(?:subscription|norton|mcafee|geek squad)|auto.?renew(?:ed|al)|subscription (?:has been )?renewed|refund department)\b/i,
     why:'Looks like a fake tech-support or fake subscription-renewal scam (virus warnings, "call this number", remote-access tools).' },
@@ -39,7 +39,7 @@ const RULES = [
     why:'The sender says they are the CEO, owner, or your boss. Executive impersonation usually leads to a gift card, wire, or payroll request.' },
   { id:'favor', cat:'Unusual favor request', w:14, re: /\b((?:quick|small|urgent|personal|discreet) (?:favou?r|task|errand)|need (?:a |you to do (?:me )?a )?favou?r|are you (?:available|free|around|at your desk|in the office)\b(?! (?:for|on|at|this|next|to|tomorrow|today)))/i,
     why:'Opens with a vague "quick favor" or "are you available?". This is how boss-impersonation scams start before asking for gift cards or a payment.' },
-  { id:'coderequest', cat:'Verification code request', w:38, re: /\b((?:send|text|give|tell|read|forward|share|reply with)(?: it)? (?:me|us|back)? ?(?:the|that|your|this)? ?(?:\d[- ]digit )?(?:verification|security|login|confirmation|one[- ]time|otp|2fa|mfa|auth(?:entication)?|access|google voice|whatsapp|pin)? ?codes?|codes? (?:i|we) (?:just )?sent (?:you|to your (?:phone|email))|what(?:'s| is) the code)\b/i,
+  { id:'coderequest', cat:'Verification code request', w:55, re: /\b((?:send|text|give|tell|read|forward|share|reply with)(?: it)? (?:me|us|back)? ?(?:the|that|your|this)? ?(?:\d[- ]digit )?(?:verification|security|login|confirmation|one[- ]time|otp|2fa|mfa|auth(?:entication)?|access|google voice|whatsapp|pin)? ?codes?|codes? (?:i|we) (?:just )?sent (?:you|to your (?:phone|email))|what(?:'s| is) the code)\b/i,
     why:'Asks you to send or read back a code. Verification codes let someone break into your accounts. Never share one, even with someone who says they\'re from the company.' },
   { id:'payroll', cat:'W-2 / payroll data request', w:30, re: /\b((?:send|email|forward|provide|need|get|share|pull|export)\b[^.\n]{0,40}\b(?:w-?2s?|w-?4s?|1099s?|payroll (?:records|data|report|reports|list|info(?:rmation)?|register|summary)|employee (?:list|records|data|ssns?|tax (?:forms|records|info))|staff (?:ssns?|tax forms))|(?:w-?2s?|payroll (?:records|data|report)) (?:for|of) (?:all|every|each) (?:employees?|staff))\b/i,
     why:'Asks for W-2s, payroll records, or employee tax data. This "W-2 scam" lets criminals file fake tax returns for your whole staff. Confirm in person or by a known phone number.' },
@@ -49,9 +49,62 @@ const RULES = [
     why:'References an attachment type often used for malware or fake login pages (.html, .zip, .exe, .iso, macro documents).' },
   { id:'generic', cat:'Generic greeting', w:5, re: /\b(dear (?:customer|user|client|valued customer|sir|madam|sir\/madam|account holder)|hello (?:customer|user))\b/i,
     why:'Uses a generic greeting instead of your name — mass phishing rarely knows who you are.' },
+  { id:'activity', cat:'Suspicious activity claim', w:8, re: /\b((?:suspicious|unusual|unauthori[sz]ed) (?:activity|charges?|transactions?|purchases?)|fraudulent (?:activity|charges?))\b/i,
+    why:'Says there was suspicious activity on your account. Real alerts happen too, so check by calling the number on your card or in your app, never one in the message.' },
+  // Text-message (SMS) scams
+  { id:'smsdelivery', cat:'Delivery / toll text scam', w:18, re: /\b(unpaid toll|toll (?:balance|bill|violation|charges?)|outstanding toll|(?:package|parcel|shipment|delivery) (?:is |has been )?(?:on hold|held|suspended|could not be delivered|was not delivered|undeliverable|returned)|could not be delivered|(?:incomplete|invalid|incorrect) (?:shipping |delivery )?address|redelivery|re-?schedule (?:your )?delivery|delivery attempt (?:failed|was unsuccessful))\b/i,
+    why:'Matches the most common scam texts: an unpaid toll, or a package "on hold" until you click a link or pay a small fee. Real carriers and toll agencies rarely text links asking for payment.' },
+  { id:'smslock', cat:'Account or card lock alert', w:15, re: /\b((?:debit |credit |bank )?(?:card|account) (?:has been |is |was )(?:temporarily )?(?:locked|suspended|frozen|restricted|disabled|blocked|on hold))\b/i,
+    why:'Says your card or account is locked. Scammers use this to get you to call them or "verify" details. Check by calling the number on the back of your card.' },
+  { id:'smsreply', cat:'Reply-to-unlock request', w:12, re: /\breply (?:with )?(?:"|')?(?:yes|y|1)(?:"|')? to (?:unlock|verify|approve|authori[sz]e|confirm (?:this|the) (?:transaction|purchase|charge)|cancel|stop (?:the|this) (?:charge|payment|transaction))\b/i,
+    why:'Asks you to reply "YES" to unlock or approve something. Replying confirms your number is active and often leads to a scam phone call.' },
+  { id:'job', cat:'Job / easy money offer', w:25, re: /\b((?:earn|make) \$?\d[\d,]*(?:\s*(?:-|to)\s*\$?\d[\d,]*)? (?:per|a|\/) ?(?:day|hour|week)|part[- ]?time (?:remote|online|from home|home[- ]based) (?:job|work|position)|remote (?:job|position) (?:offer|opportunity)|work from home (?:job|opportunity)|(?:contact|message|reply|add) (?:me |us )?(?:on|via) (?:whatsapp|telegram|signal))\b/i,
+    why:'Offers easy money or a remote job by text, or moves the chat to WhatsApp or Telegram. These are classic task and job scams that end with you paying "fees".' },
+  { id:'wrongnumber', cat:'Wrong-number opener', w:25, re: /\b(is this still your number|is this (?:still )?\w+'?s number\?|sorry,? (?:i think )?(?:i have|i've got|i got|this is)? ?(?:the )?wrong number|did you get my (?:last )?message)\b/i,
+    why:'A friendly "wrong number" or "is this still your number?" text from a stranger is how many investment and romance scams start. Don\'t reply.' },
   { id:'qr', cat:'QR code lure', w:12, re: /\b(scan (?:the|this) qr|qr code)\b/i,
     why:'Asks you to scan a QR code — "quishing" hides malicious links from email filters.' },
 ];
+
+// Spanish versions of the same patterns. Text is matched without accents, so "contraseña" is written "contrasena" here.
+// They share category names with the English rules, so a message is never scored twice for the same thing.
+const es = (id, cat, w, words, why) => ({ id: id + '-es', cat, w, re: new RegExp('\\b(' + words.join('|') + ')\\b', 'i'), why: why + ' (Spanish)' });
+RULES.push(
+  es('urgency','Urgency pressure',12,['urgente','inmediatamente','de inmediato','en las proximas (?:24|48) horas','dentro de (?:24|48) horas','hoy mismo','ultimo aviso','aviso final','actue ahora','su cuenta (?:sera|ha sido|esta) (?:suspendida|cerrada|cancelada|desactivada)'],
+    'Creates time pressure ("urgente", "inmediatamente", "último aviso"). Scammers rush people so they skip verification.'),
+  es('secrecy','Secrecy request',14,['no (?:se lo |le )?digas a nadie','no le diga a nadie','mantenlo en secreto','es confidencial','estoy en una reunion','no puedo hablar(?: ahora)?'],
+    'Asks for secrecy or says the sender can\'t talk — classic boss impersonation.'),
+  es('giftcard','Gift card request',30,['tarjetas? de regalo','tarjetas? (?:de )?(?:google play|itunes|apple|amazon|steam)','raspa(?:r)? (?:la parte de atras|el codigo)','(?:enviame|mandame|envia|manda) (?:las )?fotos? de (?:las )?tarjetas?','codigos? de (?:las )?tarjetas?'],
+    'Mentions buying gift cards or sending card codes. Legitimate businesses never ask to be paid in gift cards.'),
+  es('paychange','Payment / bank change',30,['(?:nuevos|nuevas?) (?:datos|informacion|cuenta) bancari[oa]s?','cambi(?:o|amos|ado) (?:de |nuestra |nuestros |la |los )?(?:cuenta|banco|datos bancarios)','actualiza(?:r|mos)? (?:sus |los |nuestros )?datos bancarios','deposito directo'],
+    'Requests a change to bank or direct-deposit details. Always confirm by phone using a number you already have.'),
+  es('wire','Wire / unusual payment',14,['transferencia (?:bancaria|electronica)','bitcoin','criptomonedas?','western union','moneygram','zelle'],
+    'Asks for a wire, crypto, or money-transfer payment — methods that are hard or impossible to reverse.'),
+  es('invoice','Invoice / payment demand',10,['factura (?:vencida|pendiente|atrasada)','pago (?:vencido|pendiente|atrasado)','saldo pendiente'],
+    'Pushes an overdue invoice or payment. Check that it matches your records.'),
+  es('credentials','Credential request',20,['verifi(?:que|ca|car) su (?:cuenta|identidad|contrasena|informacion)','confirm(?:e|a|ar) su (?:contrasena|cuenta|identidad|informacion)','ingres(?:e|a) su contrasena','actualice su (?:informacion|metodo de pago|contrasena)','inicio de sesion (?:inusual|sospechoso)'],
+    'Asks you to log in, verify, or "confirm" your account — the core move of phishing.'),
+  es('activity','Suspicious activity claim',8,['actividad (?:inusual|sospechosa)','cargos? (?:no autorizados?|sospechosos?)','compra sospechosa','transaccion(?:es)? (?:sospechosas?|no autorizadas?)'],
+    'Says there was suspicious activity on your account. Real alerts happen too, so check by calling the number on your card or in your app, never one in the message.'),
+  es('sensitive','Sensitive data request',18,['(?:numero de )?seguro social','codigo de (?:verificacion|seguridad)','numero de (?:la )?tarjeta','clave (?:de acceso|bancaria)'],
+    'Asks for sensitive information (Social Security number, codes, card numbers). Never send these by text or email.'),
+  es('prize','Too good to be true',14,['(?:usted )?(?:ha|has) ganado','ganador','felicidades,? (?:usted|has|ha)','reclam(?:e|a) su (?:premio|reembolso)','loteria','herencia'],
+    'Promises a prize, refund, or windfall — a common hook to collect fees or personal info.'),
+  es('threat','Threats / consequences',10,['accion legal','orden de arresto','arresto','policia','multas?','recargos?','cargo por mora','(?:sera|seran) (?:cortado|suspendido|desconectado)s?'],
+    'Threatens penalties, fines, or arrest to scare you into acting quickly.'),
+  es('generic','Generic greeting',5,['estimado (?:cliente|usuario)','querido cliente'],
+    'Uses a generic greeting instead of your name.'),
+  es('smsdelivery','Delivery / toll text scam',18,['peaje (?:pendiente|sin pagar|impago|vencido)','saldo de peaje','(?:paquete|envio|pedido) (?:esta |ha sido |fue )?(?:retenido|en espera|devuelto|suspendido)','(?:paquete|envio|pedido) no (?:pudo ser|fue) entregado','no (?:pudo|pudimos) entregar','direccion (?:incompleta|incorrecta|invalida)','reprogramar (?:la |su )?entrega'],
+    'Matches the most common scam texts: an unpaid toll, or a package "on hold" until you click a link or pay a fee.'),
+  es('smslock','Account or card lock alert',15,['(?:tarjeta|cuenta)(?: de (?:debito|credito))? (?:ha sido |esta |fue )?(?:temporalmente )?(?:bloqueada|suspendida|congelada|restringida|desactivada)'],
+    'Says your card or account is locked. Check by calling the number on the back of your card.'),
+  es('smsreply','Reply-to-unlock request',12,['respond(?:a|e) (?:si|sl|s1|1) para (?:desbloquear|verificar|confirmar|cancelar|aprobar)'],
+    'Asks you to reply "SÍ" to unlock or approve something. Replying often leads to a scam phone call.'),
+  es('job','Job / easy money offer',25,['gan(?:e|a|ar) \\$?\\d[\\d,]*(?:\\s*(?:-|a)\\s*\\$?\\d[\\d,]*)? (?:al|por) (?:dia|hora|semana)','trabajo (?:remoto|desde casa|en linea) (?:de medio tiempo|facil)','trabajo de medio tiempo (?:remoto|desde casa|en linea)','(?:contacte|contactenos|escribenos|escribeme|agregame) (?:por|en) (?:whatsapp|telegram)'],
+    'Offers easy money or a remote job by text, or moves the chat to WhatsApp or Telegram — classic job scams.'),
+  es('wrongnumber','Wrong-number opener',25,['(?:sigue siendo|todavia es) (?:este )?tu numero','perdon,? numero equivocado','creo que me equivoque de numero'],
+    'A friendly "wrong number" text from a stranger is how many investment and romance scams start. Don\'t reply.')
+);
 
 function extractUrls(text){
   const out = [];
@@ -60,7 +113,9 @@ function extractUrls(text){
   return [...new Set(out)];
 }
 function hostOf(u){ try{ return new URL(/^https?:/i.test(u)?u:'http://'+u).hostname.toLowerCase(); }catch{ return null; } }
-function rootDomain(h){ const p=h.split('.'); return p.slice(-2).join('.'); }
+// Two-part country endings (amazon.co.uk) keep three labels, so the real company name is compared.
+const SLD = /^(co|com|net|org|gov|ac|edu|ltd|plc|me|gob|nic|or|ne)\.[a-z]{2}$/;
+function rootDomain(h){ const p=h.split('.'); return p.slice(SLD.test(p.slice(-2).join('.')) && p.length>2 ? -3 : -2).join('.'); }
 function deLeet(s){ return s.replace(/0/g,'o').replace(/1/g,'l').replace(/3/g,'e').replace(/5/g,'s').replace(/rn/g,'m').replace(/vv/g,'w'); }
 // Brand names as people write them in display names ("Wells Fargo", "Geek Squad").
 const BRAND_WORDS = { wellsfargo:'wells fargo', bankofamerica:'bank of america', geeksquad:'geek squad', office365:'office 365', alaskausa:'alaska usa' };
@@ -71,6 +126,8 @@ function nameHasBrand(nameLc, b){ if(b.length>=5 && nameLc.replace(/[^a-z0-9]/g,
 function labelHasBrand(label, b){ return b.length>=5 ? label.includes(b) : label.split('-').includes(b); }
 // Brands that are also common first names: only count them in a display name with a company-style word nearby.
 const NAME_LIKE = { chase: /\b(bank|banking|alerts?|online|card|cards|secur\w*|service|support|team|fraud|account|notifications?|jpmorgan)\b/ };
+// True when a and brand differ only by characters screen-reading (OCR) often confuses: 1/l/I, 0/o, rn/m, vv/w, 5/s.
+function ocrOnlyDiff(label, brand){ const n = x => x.toLowerCase().replace(/[1i|]/g,'l').replace(/0/g,'o').replace(/rn/g,'m').replace(/vv/g,'w').replace(/5/g,'s'); return label !== brand && n(label) === n(brand); }
 function lev(a,b){ const d=Array.from({length:a.length+1},(_,i)=>[i]); for(let j=1;j<=b.length;j++)d[0][j]=j; for(let i=1;i<=a.length;i++)for(let j=1;j<=b.length;j++)d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]===b[j-1]?0:1)); return d[a.length][b.length]; }
 
 function parseSender(s){
@@ -82,13 +139,23 @@ function parseSender(s){
   return { name, email, domain: dom };
 }
 
-function analyze({ text = '', sender = '', subject = '' } = {}){
-  const body = String(text||''); const subj = String(subject||'');
+function analyze(input){
+  const { text = '', subject = '', source = '' } = input || {}; const sender = typeof input?.sender === 'string' ? input.sender : '';
+  const body = typeof text === 'string' ? text : String(text ?? ''); const subj = typeof subject === 'string' ? subject : '';
   const all = subj + '\n' + body;
   const reasons = []; let score = 0;
   const add = (cat, pts, why, sev) => { reasons.push({ category:cat, points:pts, detail:why, severity: sev || (pts>=20?'high':pts>=10?'medium':'low') }); score += pts; };
 
-  for(const r of RULES){ const m = all.match(r.re); if(m) add(r.cat, r.w, r.why + ` (matched: "${m[0].trim()}")`); }
+  // Match rules on single-spaced text, so phrases split across lines (wrapped texts, screenshots) still count.
+  const flat = all.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ');
+  // "Do not share this code" is a warning, not a request: for these rules, skip matches right after a negation.
+  const NEGATABLE = new Set(['Verification code request','Sensitive data request','Credential request']);
+  const negated = (text, i) => /\b(do not|don'?t|never|not|no one|nobody|won'?t|will never|no debe|nunca|no comparta)\b[^.!?\n]{0,12}$/i.test(text.slice(Math.max(0, i - 40), i));
+  for(const r of RULES){ if(reasons.some(x => x.category === r.cat)) continue;
+    let m = null;
+    if(NEGATABLE.has(r.cat)){ const g = new RegExp(r.re.source, r.re.flags.includes('g') ? r.re.flags : r.re.flags + 'g'); let x; while((x = g.exec(flat))){ if(!negated(flat, x.index)){ m = x; break; } if(!x[0].length) g.lastIndex++; } }
+    else m = flat.match(r.re);
+    if(m) add(r.cat, r.w, r.why + ` (matched: "${m[0].trim()}")`); }
 
   // Sender analysis
   const s = parseSender(sender);
@@ -108,7 +175,7 @@ function analyze({ text = '', sender = '', subject = '' } = {}){
   }
 
   // Link analysis
-  const urls = extractUrls(body);
+  const urls = extractUrls(subj + '\n' + body);
   const linkFlags = new Set();
   for(const u of urls){
     const h = hostOf(u); if(!h) continue;
@@ -122,17 +189,23 @@ function analyze({ text = '', sender = '', subject = '' } = {}){
       const sub = h.slice(0, h.length-root.length);
       if(label===b) break;
       if(dl===b || (labelHasBrand(dl,b) && !label.includes(b)) || (b.length>=5 && lev(label,b)<=1) || (labelHasBrand(label,b) && /[-]|secure|verify|login|support|billing|account|update/.test(label)) || sub.split('.').some(part=>labelHasBrand(part,b))){
-        if(!linkFlags.has('look:'+h)){ linkFlags.add('look:'+h); add('Lookalike link', 25, `Link "${h}" pretends to be ${b} but goes to a different site (${root}).`); }
+        if(!linkFlags.has('look:'+h)){ linkFlags.add('look:'+h);
+          // "paypal.com.account-verify.co": the real address is used as a disguise in front of someone else's site.
+          const disguise = new RegExp('(^|\\.)(' + b + '\\.(?:com|net|org|co|us|gov))\\.').exec(h);
+          if(disguise){ add('Disguised link', 55, `The link starts with "${disguise[2]}" to look real, but it actually goes to ${root}, a different website.`); break; }
+          // In a screenshot, "paypa1" may just be "paypal" misread. If an OCR-confusable swap is the only difference, flag it more gently.
+          if(source === 'screenshot' && ocrOnlyDiff(label, b)) add('Lookalike link', 12, `Link "${h}" looks like ${b} with a letter swapped. That may be a reading error from the screenshot: check the original message. If the link really says "${h}", treat it as fake.`, 'medium');
+          else add('Lookalike link', 25, `Link "${h}" pretends to be ${b} but goes to a different site (${root}).`); }
         break;
       }
     }
-    if(s && s.domain && /\b(login|sign in|verify|confirm|update)\b/i.test(all) && rootDomain(s.domain)!==root && !linkFlags.has('mismatch') && !SHORTENERS.includes(h)){
+    if(s && s.domain && /\b(login|sign in|verify|confirm|update|inicie sesion|verifique|confirme|actualice)\b/i.test(all) && rootDomain(s.domain)!==root && !linkFlags.has('mismatch') && !SHORTENERS.includes(h)){
       linkFlags.add('mismatch'); add('Link/sender mismatch', 8, `Asks you to log in or verify, but the link (${root}) doesn't match the sender's domain (${rootDomain(s.domain)}).`);
     }
   }
   // phone number + call to action (tech support/callback phishing)
-  if(/(\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}/.test(body) && /\b(call|contact|dial)\b/i.test(body) && /\b(cancel|refund|renew|charged|dispute|infected|support)\b/i.test(all))
-    add('Callback scam pattern', 15, 'Gives a phone number to "cancel", "dispute", or get "support". Callback scams use these numbers to get remote access or payments. Look up the company\'s number yourself.');
+  if(/(\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}/.test(body) && /\b(call|contact|dial|llame|llamar|llamenos|contacte|marque)\b/i.test(body) && /\b(cancel|refund|renew|charged|dispute|infected|support|unlock|locked|suspended|fraud(?:ulent)?|suspicious|cancelar|reembolso|cargo|bloquead[ao]|fraude|soporte|sospechos[ao])\b/i.test(all.normalize('NFD').replace(/[\u0300-\u036f]/g, '')))
+    add('Callback scam pattern', 15, 'Gives a phone number to call about a charge, a refund, a locked account, or "support". Callback scams use these numbers to get remote access, codes, or payments. Look up the company\'s real number yourself.');
 
   // Combos
   const has = id => reasons.some(r=>r.category===id);
@@ -155,7 +228,11 @@ function analyze({ text = '', sender = '', subject = '' } = {}){
   else if(has('"New number" family impersonation') && (payment || /\$\s?\d|\b(send|need|borrow|transfer)\b[^.\n]{0,30}\b(money|cash|\d+)\b/i.test(all))) floor('Combination: family emergency money request', 'A relative on a "new number" asking for money is a common impersonation scam. Call them on their old number first.');
   else if(has('Gift card request') && has('Verification code request')) floor('Combination: gift card codes', 'Asks for gift card codes, which is how gift card scams take the money.');
 
-  if((has('Lookalike link')||has('Raw IP link')||has('Disguised characters in link')) && (has('Urgency pressure')||has('Credential request')||has('Threats / consequences'))) add('Combination: deceptive link + pressure', 10, 'A disguised link combined with pressure to act is the standard phishing recipe.');
+  if((has('Lookalike link')||has('Disguised link')||has('Raw IP link')||has('Disguised characters in link')) && (has('Urgency pressure')||has('Credential request')||has('Threats / consequences'))) add('Combination: deceptive link + pressure', 10, 'A disguised link combined with pressure to act is the standard phishing recipe.');
+  if(has('Risky link domain') && (has('Urgency pressure')||has('Threats / consequences'))) add('Combination: risky link + pressure', 10, 'A link to a high-risk domain combined with a deadline or threat is a common phishing pattern.');
+  if(has('Delivery / toll text scam') && urls.length) add('Combination: text scam + link', 15, 'A delivery or toll message that asks you to tap a link is the standard "smishing" scam. Go to the carrier or toll agency\'s website yourself instead.');
+  if(has('Account or card lock alert') && (has('Reply-to-unlock request')||has('Callback scam pattern')||urls.length)) add('Combination: lock alert + action', 10, 'A "card locked" alert that asks you to reply, call a number in the text, or tap a link is a common bank-impersonation scam.');
+  if(source === 'screenshot') reasons.push({ category:'Read from a screenshot', points:0, detail:'This text was read from an image, so a letter or two may be off. Check the message text above, and look closely at any links before trusting this result.', severity:'info' });
   if(body.trim().length < 15) reasons.push({ category:'Very little text', points:0, detail:'There isn\'t much to analyze. Paste the full message, including the sender and subject, for a better result.', severity:'info' });
 
   score = Math.max(0, Math.min(100, Math.round(score)));
@@ -166,4 +243,4 @@ function analyze({ text = '', sender = '', subject = '' } = {}){
     : reasons.some(r=>r.points>0) ? 'Low risk, but we noticed something worth a second look (see the reasons). If it asks for money, logins, codes, or a payment change, verify it independently.' : 'No strong scam signals found. Stay alert anyway: if it asks for money, logins, or a payment change, verify it independently.';
   return { verdict, score, reasons, advice, links: urls, engine:'heuristic' };
 }
-module.exports = { analyze };
+module.exports = { analyze, rootDomain, hostOf, extractUrls };
