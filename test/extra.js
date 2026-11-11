@@ -42,4 +42,8 @@ c({text:'https://paypal.com.account-verify.co/login'},'Scam');
 c({text:'Your account is locked. Verify immediately: https://chase.com.alerts-verify.top/x'},'Scam');
 c({text:'Sign in at https://www.paypal.com/signin to see your activity.', sender:'service@paypal.com'},'Safe');
 c({text:'Chase: Did you attempt a purchase of $45.12 at Target? Reply YES or NO.'},'Safe');
+// Code texts: a real code text is Safe; asking for the code is a Scam
+c({text:'Your Chase verification code is 482913. Do not share this code with anyone.'},'Safe');
+c({text:'Never give anyone your code. Your Google verification code is G-123456.'},'Safe');
+c({text:'Hi, I sent you a code by mistake, can you send me the verification code?'},'Scam');
 console.log('Extra tests passed');

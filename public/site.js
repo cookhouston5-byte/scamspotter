@@ -20,7 +20,7 @@ const I = {
 
 // ---- theme ----
 const mq = window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : null;
-function applyTheme(){ const t = store.get('ss-theme') || 'light'; const dark = t === 'dark' || (t === 'auto' && mq && mq.matches);
+function applyTheme(){ const t = store.get('ss-theme') || 'dark'; const dark = t === 'dark' || (t === 'auto' && mq && mq.matches);
   if(dark) document.documentElement.dataset.theme = 'dark'; else delete document.documentElement.dataset.theme; }
 applyTheme(); if(mq && mq.addEventListener) mq.addEventListener('change', applyTheme);
 
@@ -44,13 +44,15 @@ function renderPlan(){
   const keyForm = (label) => `<form class="keyform"><label for="dm-key">${label}</label><div class="keyrow"><input id="dm-key" placeholder="SS-cus_…" autocomplete="off" spellcheck="false" value="${esc(getKey())}"><button class="btn sm" type="submit">Save</button></div><p class="formmsg" role="status" style="font-size:13.5px;margin-top:6px"></p></form>`;
   let h = '';
   if(p.plan === 'team' && p.httpStatus !== 401){
-    const st = p.status, map = { active:['Active','ok'], trialing:['Free trial','ok'], past_due:['Payment due','warn'], unpaid:['Unpaid','bad'], canceled:['Canceled','bad'], none:['No subscription','bad'], unknown:['Checking…','free'] };
+    const st = p.status, map = { active:['Active','ok'], trialing:['Free trial','ok'], past_due:['Payment due','warn'], unpaid:['Unpaid','bad'], canceled:['Canceled','bad'], none:['No subscription','bad'], unknown:['Checking…','free'], unverified_trial:['Free trial','ok'], unverified:['Not verified','bad'] };
     const [label, cls] = map[st] || [st, 'warn'];
     let detail = '';
     if(st === 'trialing' && p.trialEnd) detail = `Your free trial ends ${fmtDate(p.trialEnd)}. ${p.cancelAtPeriodEnd ? 'It won’t renew.' : 'Then $29/month.'}`;
     else if(st === 'active' && p.periodEnd) detail = p.cancelAtPeriodEnd ? `Canceled. Access ends ${fmtDate(p.periodEnd)}.` : `Renews ${fmtDate(p.periodEnd)}${p.amount ? ' at $' + (p.amount/100).toFixed(2) : ''}.`;
     else if(st === 'past_due') detail = 'Your last payment didn’t go through. Update your card to keep unlimited checks.';
     else if(st === 'canceled' || st === 'none') detail = 'This team no longer has an active plan. Start a new trial or contact us.';
+    else if(st === 'unverified_trial') detail = `Unlimited checks for your whole team${p.trialEnd ? ' through ' + fmtDate(p.trialEnd) : ''}.`;
+    else if(st === 'unverified') detail = 'We couldn’t confirm this team’s subscription. Email ' + CONTACT + ' and we’ll sort it out.';
     else if(!p.details) detail = 'Unlimited checks for your whole team.';
     h += `<div class="plan-card"><div class="pt"><b>Team plan</b><span class="status ${cls}">${esc(label)}</span></div><div class="pd">${esc(detail)}</div></div>`;
     h += `<a class="btn ghost block" href="/agent" style="margin-bottom:12px">Open the Agent: emails, deepfakes, calls</a>`;
@@ -71,7 +73,7 @@ function renderPlan(){
   const f = el.querySelector('.keyform');
   if(f) f.addEventListener('submit', async e => { e.preventDefault(); const v = f.querySelector('input').value.trim(); const m = f.querySelector('.formmsg');
     if(!v){ store.set('ss-team-key', null); refreshPlan(); return; }
-    if(!/^SS-cus_[A-Za-z0-9]+\.[A-Za-z0-9_-]{22}$/.test(v)){ m.className='formmsg err'; m.textContent = 'That doesn’t look like a ScamSpotter key. It starts with “SS-cus_”.'; return; }
+    if(!/^SS-cus_[A-Za-z0-9]+(\.[0-9a-z]{1,10})?\.[A-Za-z0-9_-]{22}$/.test(v)){ m.className='formmsg err'; m.textContent = 'That doesn’t look like a ScamSpotter key. It starts with “SS-cus_”.'; return; }
     store.set('ss-team-key', v); m.className='formmsg'; m.textContent = 'Checking…';
     const p2 = await refreshPlan(); if(p2.httpStatus === 401){ store.set('ss-team-key', null); } });
   const portal = el.querySelector('[data-portal]');
@@ -96,7 +98,7 @@ async function loadReviews(){
 function build(){
   const scrim = document.createElement('div'); scrim.className = 'scrim'; scrim.dataset.close = '';
   const d = document.createElement('aside'); d.className = 'drawer'; d.id = 'menu'; d.setAttribute('aria-label','Menu'); d.setAttribute('role','dialog'); d.setAttribute('aria-modal','true'); d.hidden = true;
-  const theme = store.get('ss-theme') || 'light';
+  const theme = store.get('ss-theme') || 'dark';
   d.innerHTML = `<div class="dh"><b>Menu</b><button class="x" type="button" data-close aria-label="Close menu">${I.x}</button></div>
 <div class="db">
  <details class="dsec" id="m-plan" open><summary>${I.plan}Your plan &amp; subscription</summary><div class="in" id="dm-plan"><p>Loading your plan…</p></div></details>
@@ -146,7 +148,7 @@ function build(){
     if(e.key === 'Tab' && document.body.classList.contains('menu-open')){ const f = [...d.querySelectorAll('a,button,input,textarea,summary')].filter(x => x.offsetParent); if(!f.length) return;
       if(e.shiftKey && document.activeElement === f[0]){ e.preventDefault(); f[f.length-1].focus(); } else if(!e.shiftKey && document.activeElement === f[f.length-1]){ e.preventDefault(); f[0].focus(); } } });
   d.querySelectorAll('input[name=theme]').forEach(r => r.addEventListener('change', () => { store.set('ss-theme', r.value); applyTheme(); }));
-  d.querySelector('[data-reset]').addEventListener('click', () => { if(!confirm('Remove your saved team key and theme from this browser?')) return; store.set('ss-team-key', null); store.set('ss-theme', null); applyTheme(); d.querySelector('#th-light').checked = true; refreshPlan(); });
+  d.querySelector('[data-reset]').addEventListener('click', () => { if(!confirm('Remove your saved team key and theme from this browser?')) return; store.set('ss-team-key', null); store.set('ss-theme', null); applyTheme(); d.querySelector('#th-dark').checked = true; refreshPlan(); });
   const rv = d.querySelector('#rv');
   rv.addEventListener('submit', async e => { e.preventDefault(); const m = rv.querySelector('.formmsg'), b = rv.querySelector('button[type=submit]');
     const data = { rating: (rv.querySelector('input[name=rating]:checked') || {}).value, name: rv.elements.name.value, business: rv.elements.business.value, comment: rv.elements.comment.value, website: rv.elements.website.value };

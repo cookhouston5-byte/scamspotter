@@ -15,7 +15,7 @@ const ready = chrome.storage.local.get(['teamKey', 'apiBase']).then(s => { key =
 $('gear').addEventListener('click', () => { const s = $('settings'); s.hidden = !s.hidden; $('gear').setAttribute('aria-expanded', String(!s.hidden)); if(!s.hidden) $('key').focus(); });
 $('save').addEventListener('click', async () => {
   const v = $('key').value.trim(); const m = $('keymsg');
-  if(v && !/^SS-cus_[A-Za-z0-9]+\.[A-Za-z0-9_-]{22}$/.test(v)){ m.className = 'msg err'; m.textContent = 'That doesn’t look like a team key. It starts with SS-cus_ and is copied in full from your welcome email.'; return; }
+  if(v && !/^SS-cus_[A-Za-z0-9]+(\.[0-9a-z]{1,10})?\.[A-Za-z0-9_-]{22}$/.test(v)){ m.className = 'msg err'; m.textContent = 'That doesn’t look like a team key. It starts with SS-cus_ and is copied in full from your welcome email.'; return; }
   m.className = 'msg'; m.textContent = 'Checking…';
   try{
     const r = await fetch(api + '/api/plan', { headers: v ? { 'X-Team-Key': v } : {} }); const j = await r.json();

@@ -7,21 +7,21 @@ const BAD_TLDS = ['zip','mov','xyz','top','click','link','gq','tk','ml','cf','ga
 function rx(list){ return new RegExp('\\b(' + list.join('|') + ')\\b','i'); }
 
 const RULES = [
-  { id:'urgency', cat:'Urgency pressure', w:12, re: rx(['urgent','urgently','immediately','asap','right away','within 24 hours','within 48 hours','today only','final notice','last warning','act now','time.sensitive','expires? today','before end of day','by end of day','eod','account (?:will be|is|has been) (?:closed|suspended|locked|terminated|on hold)','suspended','deactivated']),
+  { id:'urgency', cat:'Urgency pressure', w:12, re: rx(['urgent','urgently','immediately','asap','right away','within 24 hours','within 48 hours','today only','final notice','last warning','act now','time.sensitive','expires? today','before end of day','by end of day','eod','account (?:will be|is|has been) (?:closed|suspended|locked|terminated|on hold)','suspended','suspension','deactivated','right now','avoid (?:suspension|closure|cancellation|penalt(?:y|ies)|late fees|arrest|legal action)','or face','no later than today','before (?:it\'?s|its) too late']),
     why:'Creates time pressure ("urgent", "immediately", "final notice"). Scammers rush people so they skip verification.' },
   { id:'secrecy', cat:'Secrecy request', w:14, re: rx(["don'?t tell","do not tell","keep this (?:between us|confidential|quiet)","confidential matter","don'?t (?:call|phone) me","i'?m in a meeting","can'?t talk","in a conference","discreet"]),
     why:'Asks for secrecy or says the sender can\'t be reached by phone — classic CEO / boss impersonation.' },
   { id:'giftcard', cat:'Gift card request', w:30, re: /\b(gift ?cards?|itunes cards?|google play cards?|steam cards?|apple cards?|amazon cards?|scratch (?:off )?the (?:back|code)|send (?:me )?(?:the )?(?:card )?(?:codes?|pictures? of the (?:cards?|back)))\b/i,
     why:'Mentions buying gift cards or sending card codes. Legitimate businesses and vendors never ask to be paid in gift cards.' },
-  { id:'paychange', cat:'Payment / bank change', w:30, re: /\b(new (?:bank(?:ing)?|account|wire|payment) (?:details|information|info|instructions)|updated? (?:our )?(?:bank(?:ing)?|payment|remittance|wire) (?:details|information|info|instructions)|chang(?:e|ed|ing) (?:of |our |in )?(?:bank(?:ing)?|account|payment|remittance)|(?:bank|account) (?:has )?changed|new remittance|routing (?:and|&) account|switch(?:ed)? banks?|direct deposit (?:change|update|information))\b/i,
+  { id:'paychange', cat:'Payment / bank change', w:30, re: /\b(new (?:bank(?:ing)?|account|wire|payment) (?:details|information|info|instructions)|updated? (?:our )?(?:bank(?:ing)?|payment|remittance|wire) (?:details|information|info|instructions)|chang(?:e|ed|ing) (?:of |our |in )?(?:bank(?:ing)?|account|payment|remittance)|(?:bank|account) (?:has )?changed|new remittance|routing (?:and|&) account|switch(?:ed)? banks?|direct deposit (?:change|update|information)|new (?:bank(?:ing)? )?account(?: number)?(?: details| info(?:rmation)?)?|(?:bank(?:ing)?|account|payment|wire) details (?:have |has )?(?:changed|updated)|updated? (?:the |our |my )?(?:bank(?:ing)?|account|payment) (?:details|information|info|on file)|update (?:the |our |my )?(?:bank(?:ing)? )?account (?:on file|details|number)|updated account|banking details|bank details)\b/i,
     why:'Requests a change to bank, wire, or direct-deposit details. This is one of the most common business email compromise patterns — always confirm by phone using a number you already have.' },
-  { id:'wire', cat:'Wire / unusual payment', w:14, re: /\b(wire transfer|wire the|send a wire|ach transfer|crypto(?:currency)?|bitcoin|btc|usdt|zelle|western union|moneygram|bitcoin atm|payment via (?:crypto|zelle))\b/i,
-    why:'Asks for a wire, crypto, Zelle, or money-transfer payment — methods that are hard or impossible to reverse.' },
-  { id:'invoice', cat:'Invoice / payment demand', w:10, re: /\b(overdue|past due|outstanding (?:invoice|balance|payment)|unpaid invoice|invoice (?:#|no\.?|number)|payment (?:is )?(?:due|required|overdue)|remit payment|final invoice|collections?)\b/i,
+  { id:'wire', cat:'Wire / unusual payment', w:14, re: /\b(wire transfer|wire the|send a wire|ach transfer|crypto(?:currency)?|bitcoin|btc|usdt|zelle|western union|moneygram|bitcoin atm|payment via (?:crypto|zelle)|venmo|cash ?app|paypal\.me|ach (?:transfer|payment|deposit)|(?:via|by|through) ach|tether|ethereum|crypto (?:wallet|atm)|wallet address)\b/i,
+    why:'Asks for a wire, ACH, crypto, Zelle/Venmo/Cash App, or money-transfer payment — methods that are hard or impossible to reverse.' },
+  { id:'invoice', cat:'Invoice / payment demand', w:10, re: /\b(overdue|past due|outstanding (?:invoice|balance|payment)|unpaid invoice|invoice (?:#|no\.?|number)|payment (?:is )?(?:due|required|overdue)|remit payment|remit (?:the )?(?:balance|amount|funds|payment)?|final invoice|collections?)\b/i,
     why:'Pushes an invoice or overdue payment. Fake invoices are common — check that the vendor, amount, and PO match your records.' },
   { id:'credentials', cat:'Credential request', w:20, re: /\b(verify your (?:account|identity|password|login|information)|confirm your (?:password|login|credentials|account|identity)|(?:re-?)?enter your (?:password|credentials|login)|login to (?:avoid|restore|verify)|reset your password|update your (?:password|payment (?:method|information)|billing)|unusual (?:sign-?in|login)(?: activity| attempt)?|validate your)\b/i,
     why:'Asks you to log in, verify, or "confirm" your account or password — the core move of phishing.' },
-  { id:'sensitive', cat:'Sensitive data request', w:18, re: /\b(social security|ssn|w-?2s?|tax forms?|employee (?:list|records|data)|bank (?:login|password)|pin (?:number|code)|one.time (?:code|passcode)|verification code|2fa code|mfa code|security code|card number|cvv)\b/i,
+  { id:'sensitive', cat:'Sensitive data request', w:18, re: /\b(social security|ssn|w-?2s?|tax forms?|employee (?:list|records|data)|bank (?:login|password)|pin (?:number|code)|card number|cvv)\b/i,
     why:'Asks for sensitive information (SSNs, W-2s, passwords, one-time codes, card numbers). Never send these by email or text.' },
   { id:'techsupport', cat:'Fake tech support', w:22, re: /\b(your (?:computer|pc|device|system) (?:is|has been) (?:infected|compromised|hacked|locked)|virus(?:es)? (?:detected|found)|call (?:our )?(?:support|technician|microsoft|apple|help desk)|toll.free|remote access|anydesk|teamviewer|ultraviewer|logmein|renewal (?:of|for) (?:your )?(?:subscription|norton|mcafee|geek squad)|auto.?renew(?:ed|al)|subscription (?:has been )?renewed|refund department)\b/i,
     why:'Looks like a fake tech-support or fake subscription-renewal scam (virus warnings, "call this number", remote-access tools).' },
@@ -29,6 +29,22 @@ const RULES = [
     why:'Promises a prize, refund, or windfall — a common hook to collect fees or personal info.' },
   { id:'threat', cat:'Threats / consequences', w:10, re: /\b(legal action|lawsuit|arrest|warrant|police|penalt(?:y|ies)|fined|fines|late fees?|service (?:will be )?(?:interrupted|disconnected|shut off)|power (?:will be )?(?:shut off|disconnected)|disconnection)\b/i,
     why:'Threatens penalties, legal action, or service shut-off to scare you into acting quickly.' },
+  { id:'today', cat:'Same-day deadline', w:6, re: /\b(today|tonight)\b/i,
+    why:'Sets a same-day deadline. On its own this is often normal, but combined with a payment or data request it is a classic pressure tactic.' },
+  { id:'govthreat', cat:'Government / IRS impersonation', w:22, re: /\b(irs|internal revenue service|social security administration|ssa|treasury department|department of (?:justice|revenue)|us marshals?|sheriff'?s (?:office|department)|federal (?:agent|agents|officer)|customs and border|homeland security|tax (?:debt|owed|due|lien)|back taxes)\b/i,
+    why:'Claims to be the IRS, Social Security, police, or another agency. Government agencies don\'t demand payment or threaten arrest by text, email, or phone call.' },
+  { id:'family', cat:'"New number" family impersonation', w:20, re: /\b((?:this is|it'?s) my new (?:phone |cell )?number|(?:i |i'?ve )?(?:got|have) a new (?:phone |cell )?number|new (?:phone |cell )?number,? (?:save|delete|it'?s me)|(?:lost|broke|dropped|cracked) my phone|(?:hi|hey|hello) (?:mom|mum|dad|grandma|grandpa|nana)[\s,.!]+(?:it'?s me|this is|new (?:phone |cell )?number|i lost|i broke)|(?:this is|it'?s) (?:your )?(?:son|daughter|grandson|granddaughter))\b/i,
+    why:'Says they are a family member on a "new number". Scammers use this to ask for urgent money by Zelle, Venmo, or Cash App. Call the person on the number you already have.' },
+  { id:'authority', cat:'Boss / executive impersonation', w:14, re: /\b((?:it'?s|this is|i'?m) (?:the |your )?(?:ceo|cfo|coo|boss|owner|president|director|managing partner)|(?:ceo|cfo|president|owner) here)\b/i,
+    why:'The sender says they are the CEO, owner, or your boss. Executive impersonation usually leads to a gift card, wire, or payroll request.' },
+  { id:'favor', cat:'Unusual favor request', w:14, re: /\b((?:quick|small|urgent|personal|discreet) (?:favou?r|task|errand)|need (?:a |you to do (?:me )?a )?favou?r|are you (?:available|free|around|at your desk|in the office)\b(?! (?:for|on|at|this|next|to|tomorrow|today)))/i,
+    why:'Opens with a vague "quick favor" or "are you available?". This is how boss-impersonation scams start before asking for gift cards or a payment.' },
+  { id:'coderequest', cat:'Verification code request', w:55, re: /\b((?:send|text|give|tell|read|forward|share|reply with)(?: it)? (?:me|us|back)? ?(?:the|that|your|this)? ?(?:\d[- ]digit )?(?:verification|security|login|confirmation|one[- ]time|otp|2fa|mfa|auth(?:entication)?|access|google voice|whatsapp|pin)? ?codes?|codes? (?:i|we) (?:just )?sent (?:you|to your (?:phone|email))|what(?:'s| is) the code)\b/i,
+    why:'Asks you to send or read back a code. Verification codes let someone break into your accounts. Never share one, even with someone who says they\'re from the company.' },
+  { id:'payroll', cat:'W-2 / payroll data request', w:30, re: /\b((?:send|email|forward|provide|need|get|share|pull|export)\b[^.\n]{0,40}\b(?:w-?2s?|w-?4s?|1099s?|payroll (?:records|data|report|reports|list|info(?:rmation)?|register|summary)|employee (?:list|records|data|ssns?|tax (?:forms|records|info))|staff (?:ssns?|tax forms))|(?:w-?2s?|payroll (?:records|data|report)) (?:for|of) (?:all|every|each) (?:employees?|staff))\b/i,
+    why:'Asks for W-2s, payroll records, or employee tax data. This "W-2 scam" lets criminals file fake tax returns for your whole staff. Confirm in person or by a known phone number.' },
+  { id:'delivery', cat:'Delivery fee / redelivery lure', w:15, re: /\b((?:re-?deliver(?:y)?|redelivery|package|parcel|shipment)\b[^.\n]{0,80}\b(?:fee|pay|update (?:your )?(?:address|details)|confirm (?:your )?(?:address|details)|reschedule)|(?:could not|couldn'?t|unable to) (?:be )?deliver(?:ed)?)\b/i,
+    why:'Says a package can\'t be delivered and asks for a fee or address update. Carriers don\'t text links asking for redelivery fees.' },
   { id:'attachment', cat:'Risky attachment', w:14, re: /\b[\w-]+\.(?:html?|exe|scr|js|vbs|iso|img|zip|rar|7z|docm|xlsm|lnk|svg)\b/i,
     why:'References an attachment type often used for malware or fake login pages (.html, .zip, .exe, .iso, macro documents).' },
   { id:'generic', cat:'Generic greeting', w:5, re: /\b(dear (?:customer|user|client|valued customer|sir|madam|sir\/madam|account holder)|hello (?:customer|user))\b/i,
@@ -132,7 +148,14 @@ function analyze(input){
 
   // Match rules on single-spaced text, so phrases split across lines (wrapped texts, screenshots) still count.
   const flat = all.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ');
-  for(const r of RULES){ if(reasons.some(x => x.category === r.cat)) continue; const m = flat.match(r.re); if(m) add(r.cat, r.w, r.why + ` (matched: "${m[0].trim()}")`); }
+  // "Do not share this code" is a warning, not a request: for these rules, skip matches right after a negation.
+  const NEGATABLE = new Set(['Verification code request','Sensitive data request','Credential request']);
+  const negated = (text, i) => /\b(do not|don'?t|never|not|no one|nobody|won'?t|will never|no debe|nunca|no comparta)\b[^.!?\n]{0,12}$/i.test(text.slice(Math.max(0, i - 40), i));
+  for(const r of RULES){ if(reasons.some(x => x.category === r.cat)) continue;
+    let m = null;
+    if(NEGATABLE.has(r.cat)){ const g = new RegExp(r.re.source, r.re.flags.includes('g') ? r.re.flags : r.re.flags + 'g'); let x; while((x = g.exec(flat))){ if(!negated(flat, x.index)){ m = x; break; } if(!x[0].length) g.lastIndex++; } }
+    else m = flat.match(r.re);
+    if(m) add(r.cat, r.w, r.why + ` (matched: "${m[0].trim()}")`); }
 
   // Sender analysis
   const s = parseSender(sender);
@@ -189,6 +212,22 @@ function analyze(input){
   if(has('Gift card request') && (has('Urgency pressure')||has('Secrecy request'))) add('Combination: boss/gift-card scam', 15, 'Gift cards plus urgency or secrecy is the textbook "boss needs gift cards" scam.');
   if(has('Payment / bank change') && (has('Invoice / payment demand')||has('Urgency pressure'))) add('Combination: invoice redirection', 12, 'A bank-detail change paired with an invoice or deadline matches vendor-impersonation invoice fraud.');
 
+  // Same-day deadline only adds weight when it isn't already counted as urgency.
+  if(has('Urgency pressure') && has('Same-day deadline')){ const i = reasons.findIndex(r=>r.category==='Same-day deadline'); score -= reasons[i].points; reasons.splice(i,1); }
+  const urgent = has('Urgency pressure') || has('Same-day deadline') || has('Threats / consequences');
+  const payment = has('Wire / unusual payment') || has('Gift card request');
+  const dataAsk = has('Verification code request') || has('W-2 / payroll data request') || has('Credential request') || has('Sensitive data request');
+  if(has('W-2 / payroll data request') && /\b(all|every|each|entire|whole)\b[^.\n]{0,20}\b(employees?|staff|team|payroll)\b/i.test(all)) add('Combination: bulk employee data', 12, 'Asks for tax or payroll data for every employee at once, the signature of the W-2 phishing scam.');
+  if((has('Boss / executive impersonation') || has('Unusual favor request')) && (payment || dataAsk || has('Secrecy request'))) add('Combination: boss impersonation', 15, 'A "boss" asking for a favor plus a payment, gift cards, codes, or secrecy is classic executive impersonation.');
+  if(has('Invoice / payment demand') && has('Wire / unusual payment')) add('Combination: invoice + bank transfer', 10, 'An overdue or pressing invoice that asks to be paid by wire or ACH matches fake-invoice fraud. Check the invoice and the bank details against your records.');
+  // Strong combinations are always at least Scam level (55).
+  const floor = (cat, why) => add(cat, Math.max(15, 55 - score), why);
+  if(payment && urgent) floor('Combination: payment under pressure', 'A hard-to-reverse payment (wire, ACH, crypto, Zelle, gift cards) demanded on a deadline is the core of most payment scams.');
+  else if(payment && dataAsk) floor('Combination: payment + data request', 'Asks for a hard-to-reverse payment and for codes or sensitive data in the same message.');
+  else if(has('Government / IRS impersonation') && (urgent || payment || /\b(pay|payment|owe|owed|balance)\b/i.test(all))) floor('Combination: government threat', 'A government agency demanding payment or threatening arrest is an impersonation scam. The IRS contacts people by mail first and never demands immediate payment.');
+  else if(has('"New number" family impersonation') && (payment || /\$\s?\d|\b(send|need|borrow|transfer)\b[^.\n]{0,30}\b(money|cash|\d+)\b/i.test(all))) floor('Combination: family emergency money request', 'A relative on a "new number" asking for money is a common impersonation scam. Call them on their old number first.');
+  else if(has('Gift card request') && has('Verification code request')) floor('Combination: gift card codes', 'Asks for gift card codes, which is how gift card scams take the money.');
+
   if((has('Lookalike link')||has('Disguised link')||has('Raw IP link')||has('Disguised characters in link')) && (has('Urgency pressure')||has('Credential request')||has('Threats / consequences'))) add('Combination: deceptive link + pressure', 10, 'A disguised link combined with pressure to act is the standard phishing recipe.');
   if(has('Risky link domain') && (has('Urgency pressure')||has('Threats / consequences'))) add('Combination: risky link + pressure', 10, 'A link to a high-risk domain combined with a deadline or threat is a common phishing pattern.');
   if(has('Delivery / toll text scam') && urls.length) add('Combination: text scam + link', 15, 'A delivery or toll message that asks you to tap a link is the standard "smishing" scam. Go to the carrier or toll agency\'s website yourself instead.');
@@ -201,7 +240,7 @@ function analyze(input){
   reasons.sort((a,b)=>b.points-a.points);
   const advice = verdict==='Scam' ? 'Do not click links, reply, pay, or send information. Verify with the person or company using contact details you already have (not ones in this message), then report or delete it.'
     : verdict==='Suspicious' ? 'Be careful. Before you act, confirm the request through a separate channel you trust, like a known phone number or by visiting the website directly.'
-    : 'No strong scam signals found. Stay alert anyway: if it asks for money, logins, or a payment change, verify it independently.';
+    : reasons.some(r=>r.points>0) ? 'Low risk, but we noticed something worth a second look (see the reasons). If it asks for money, logins, codes, or a payment change, verify it independently.' : 'No strong scam signals found. Stay alert anyway: if it asks for money, logins, or a payment change, verify it independently.';
   return { verdict, score, reasons, advice, links: urls, engine:'heuristic' };
 }
 module.exports = { analyze, rootDomain, hostOf, extractUrls };
