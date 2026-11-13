@@ -120,6 +120,7 @@ app.post('/api/stripe/webhook', express.raw({ type:'*/*', limit:'1mb' }), async 
   seenEvents.add(ev.id); if(seenEvents.size > 5000) seenEvents.clear();
   const o = (ev.data && ev.data.object) || {};
   try{
+    // A yearly price uses this same checkout. The subscription status, not the interval, is what the access check reads.
     if(ev.type === 'checkout.session.completed'){
       const email = o.customer_details?.email || o.customer_email, name = o.customer_details?.name || '';
       const key = makeKey(o.customer, o.created ? o.created * 1000 : Date.now());
@@ -137,6 +138,21 @@ app.get('/subscribed', (req,res)=>res.redirect(302, '/welcome'));
 app.use(express.static(path.join(__dirname,'public'), { extensions:['html'] }));
 
 app.get('/api/health', (req,res)=>res.json({ ok:true, llm: !!process.env.OPENAI_API_KEY }));
+
+// Public prices. The monthly checkout link is fixed. Yearly checkout appears only when YEARLY_PAYMENT_LINK is an https URL.
+const MONTHLY_PAYMENT_LINK = 'https://buy.stripe.com/7sY7sL3WAdh23e80D0asg04';
+function yearlyPaymentLink(){
+  const u = String(process.env.YEARLY_PAYMENT_LINK || '').trim();
+  return /^https:\/\/\S+$/.test(u) ? u : '';
+}
+app.get('/api/pricing', (req,res)=>{
+  const yearly = yearlyPaymentLink();
+  res.json({
+    trialDays: 14,
+    monthly: { amount: 29, interval: 'month', url: MONTHLY_PAYMENT_LINK },
+    yearly: yearly ? { amount: 290, interval: 'year', url: yearly, note: '2 months free' } : null
+  });
+});
 
 // Plan / quota helpers
 const today = () => new Date().toISOString().slice(0,10);
@@ -294,6 +310,7 @@ function envReport(){
   miss('OWNER_EMAIL', 'feedback, reviews and new trials are not emailed to you.');
   miss('DATA_DIR', 'feedback, reviews, and visitor stats are written to ./data, which is wiped on every Render deploy. Daily totals are also logged.');
   miss('OPENAI_API_KEY', 'AI second opinion is off; rule-based checks only.');
+  miss('YEARLY_PAYMENT_LINK', 'the yearly plan is hidden and trial buttons stay on the monthly checkout.');
 }
 const PORT = process.env.PORT || 3000;
 if(require.main===module){ envReport(); app.listen(PORT, ()=>console.log('ScamSpotter on http://localhost:'+PORT)); }

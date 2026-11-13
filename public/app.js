@@ -33,7 +33,7 @@ function limitHtml(j){
   return `<div class="limit"><svg class="i" viewBox="0 0 24 24" style="width:56px;height:56px;color:var(--accent);stroke-width:1.2" aria-hidden="true"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="1.5"/><path d="M12 2.5v4M12 17.5v4M2.5 12h4M17.5 12h4"/></svg>
   <h2>That’s today’s free checks</h2><p>${esc(j.error)} Free checks reset tomorrow. For unlimited checks for your whole team, start the 14-day free trial.</p>
   ${j.plan && j.plan.badKey ? '<p style="color:var(--bad)">Your saved team key wasn’t accepted. Check it under Your plan.</p>' : ''}
-  <div class="ctas"><a class="btn" href="${SS.trialUrl}">Start 14-day free trial</a><button class="btn ghost" type="button" data-menu="plan">I have a team key</button></div></div>`;
+  ${SS.billingChoiceHtml()}<div class="ctas"><a class="btn" data-plan-link href="${esc(SS.planUrl())}">Start 14-day free trial</a><button class="btn ghost" type="button" data-menu="plan">I have a team key</button></div></div>`;
 }
 
 const REPORT = `<div class="report"><b>Report it (takes a minute, and it helps stop the next one)</b><ul>

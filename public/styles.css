@@ -90,7 +90,22 @@ section{padding:88px 0;scroll-margin-top:calc(var(--hh) + 8px)}
 .price{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:30px;position:relative;box-shadow:var(--shadow)}
 .price.best{border:1.5px solid var(--accent);box-shadow:var(--shadow-lg)}
 .price .badge{position:absolute;top:-12px;left:28px;background:var(--accent);color:var(--on-accent);font-size:12px;font-weight:700;padding:3px 10px;border-radius:999px;letter-spacing:.02em}
-.price h3{margin:0 0 6px;font-size:18px}.price .amt{font-family:var(--serif);font-size:50px;font-weight:600;letter-spacing:-.02em;line-height:1.05}.price .amt span{font-family:var(--sans);font-size:15px;color:var(--muted);font-weight:500;letter-spacing:0}
+.price h3{margin:0 0 6px;font-size:18px}.price .amt{font-family:var(--serif);font-size:50px;font-weight:600;letter-spacing:-.02em;line-height:1.05}.price .amt .unit{font-family:var(--sans);font-size:15px;color:var(--muted);font-weight:500;letter-spacing:0}
+.bill{margin:4px 0 14px}.bill[hidden]{display:none !important}
+.bill-seg{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line2);border-radius:999px;overflow:hidden;background:var(--surface2);max-width:280px}
+.bill-seg button{appearance:none;border:0;background:transparent;font:inherit;font-size:14px;font-weight:600;color:var(--muted);padding:8px 14px;cursor:pointer}
+.bill-seg button[aria-checked="true"]{background:var(--accent);color:var(--on-accent)}
+.bill-seg button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.bill-inline{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px}
+.bill-inline .bill-seg{max-width:none;min-width:200px}
+.save{font-family:var(--mono);font-size:12.5px;font-weight:600;color:var(--accent);margin:8px 0 0}
+.bill-inline .save{margin:0}
+.band-buy{display:flex;flex-direction:column;align-items:flex-start;gap:10px;position:relative}
+.band-buy .bill{margin:0}
+.band .bill-seg{border-color:rgba(255,255,255,.28);background:transparent}
+.band .bill-seg button{color:#f3e6d8}
+.band .bill-seg button[aria-checked="true"]{background:var(--accent);color:#fff}
+.band .save{color:#ffb199}
 .price ul{list-style:none;padding:0;margin:20px 0 24px}
 .price li{padding:8px 0 8px 28px;position:relative;font-size:15px;border-bottom:1px dashed var(--line)}
 .price li:before{content:"";position:absolute;left:2px;top:12px;width:16px;height:16px;background:no-repeat center/16px url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23e4572e' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E")}

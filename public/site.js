@@ -2,6 +2,67 @@
 (function(){
 const STRIPE_TRIAL = 'https://buy.stripe.com/7sY7sL3WAdh23e80D0asg04';
 const CONTACT = 'hello@scamspotter.app';
+let pricing = { monthly: { url: STRIPE_TRIAL, amount: 29, interval: 'month' }, yearly: null };
+let billing = 'month';
+const httpsUrl = u => /^https:\/\/\S+$/.test(String(u || '')) ? String(u) : '';
+const yearlyOn = () => !!(pricing.yearly && httpsUrl(pricing.yearly.url));
+const planUrl = () => (billing === 'year' && yearlyOn()) ? pricing.yearly.url : (httpsUrl(pricing.monthly && pricing.monthly.url) || STRIPE_TRIAL);
+function setBilling(interval){
+  billing = interval === 'year' && yearlyOn() ? 'year' : 'month';
+  try{ localStorage.setItem('ss-billing', billing); }catch(e){}
+  applyBilling();
+}
+function applyBilling(){
+  if(!yearlyOn()) billing = 'month';
+  document.querySelectorAll('[data-billing]').forEach(el => { el.hidden = !yearlyOn(); });
+  document.querySelectorAll('[data-yearly-copy]').forEach(el => { el.hidden = !yearlyOn(); });
+  document.querySelectorAll('[data-plan-link]').forEach(a => { a.href = planUrl(); });
+  document.querySelectorAll('[data-billing] [data-interval]').forEach(b => { b.setAttribute('aria-checked', b.dataset.interval === billing ? 'true' : 'false'); });
+  const year = billing === 'year' && yearlyOn();
+  const amt = document.getElementById('team-price');
+  if(amt){
+    const unit = amt.querySelector('[data-price-unit]');
+    if(amt.firstChild) amt.firstChild.textContent = year ? '$290' : '$29';
+    if(unit) unit.textContent = year ? ' / year per business' : ' / month per business';
+  }
+  document.querySelectorAll('[data-price-note]').forEach(n => { n.hidden = !year; });
+  document.querySelectorAll('[data-price-line]').forEach(n => { n.textContent = year ? '14 days free, then $290/year for your whole business.' : '14 days free, then $29/month for your whole business.'; });
+  if(window.SS) window.SS.trialUrl = planUrl();
+}
+function billingChoiceHtml(){
+  if(!yearlyOn()) return '';
+  const on = v => v === billing ? 'true' : 'false';
+  return `<div class="bill bill-inline" data-billing><div class="bill-seg" role="radiogroup" aria-label="Billing period"><button type="button" role="radio" data-interval="month" aria-checked="${on('month')}">Monthly</button><button type="button" role="radio" data-interval="year" aria-checked="${on('year')}">Yearly</button></div><span class="save" data-price-note ${billing==='year'?'':'hidden'}>2 months free</span></div>`;
+}
+function pricePhrase(p){
+  const interval = p && p.interval === 'year' ? 'year' : 'month';
+  const cents = p && typeof p.amount === 'number' ? p.amount : (interval === 'year' ? 29000 : 2900);
+  const n = cents / 100;
+  return '$' + (Number.isInteger(n) ? String(n) : n.toFixed(2)) + '/' + interval;
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest && e.target.closest('[data-billing] [data-interval]');
+  if(!b) return;
+  setBilling(b.dataset.interval);
+});
+document.addEventListener('keydown', e => {
+  const b = e.target.closest && e.target.closest('[data-billing] [data-interval]');
+  if(!b || (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft' && e.key !== 'ArrowUp' && e.key !== 'ArrowDown')) return;
+  e.preventDefault();
+  const next = (e.key === 'ArrowRight' || e.key === 'ArrowDown') ? 'year' : 'month';
+  setBilling(next);
+  const btn = b.parentElement && b.parentElement.querySelector('[data-interval="' + next + '"]');
+  if(btn) btn.focus();
+});
+async function loadPricing(){
+  try{
+    const r = await fetch('/api/pricing');
+    if(r.ok){ const j = await r.json(); if(j && j.monthly && httpsUrl(j.monthly.url)) pricing = j; }
+  }catch(e){}
+  try{ const saved = localStorage.getItem('ss-billing'); if(saved === 'year' || saved === 'month') billing = saved; }catch(e){}
+  applyBilling();
+  if(document.getElementById('dm-plan') && lastPlan) renderPlan();
+}
 const store = {
   get(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } },
   set(k,v){ try{ v==null ? localStorage.removeItem(k) : localStorage.setItem(k,v); }catch(e){} }
@@ -47,8 +108,8 @@ function renderPlan(){
     const st = p.status, map = { active:['Active','ok'], trialing:['Free trial','ok'], past_due:['Payment due','warn'], unpaid:['Unpaid','bad'], canceled:['Canceled','bad'], none:['No subscription','bad'], unknown:['Checking…','free'], unverified_trial:['Free trial','ok'], unverified:['Not verified','bad'] };
     const [label, cls] = map[st] || [st, 'warn'];
     let detail = '';
-    if(st === 'trialing' && p.trialEnd) detail = `Your free trial ends ${fmtDate(p.trialEnd)}. ${p.cancelAtPeriodEnd ? 'It won’t renew.' : 'Then $29/month.'}`;
-    else if(st === 'active' && p.periodEnd) detail = p.cancelAtPeriodEnd ? `Canceled. Access ends ${fmtDate(p.periodEnd)}.` : `Renews ${fmtDate(p.periodEnd)}${p.amount ? ' at $' + (p.amount/100).toFixed(2) : ''}.`;
+    if(st === 'trialing' && p.trialEnd) detail = `Your free trial ends ${fmtDate(p.trialEnd)}. ${p.cancelAtPeriodEnd ? 'It won’t renew.' : 'Then ' + pricePhrase(p) + '.'}`;
+    else if(st === 'active' && p.periodEnd) detail = p.cancelAtPeriodEnd ? `Canceled. Access ends ${fmtDate(p.periodEnd)}.` : `Renews ${fmtDate(p.periodEnd)} at ${pricePhrase(p)}.`;
     else if(st === 'past_due') detail = 'Your last payment didn’t go through. Update your card to keep unlimited checks.';
     else if(st === 'canceled' || st === 'none') detail = 'This team no longer has an active plan. Start a new trial or contact us.';
     else if(st === 'unverified_trial') detail = `Unlimited checks for your whole team${p.trialEnd ? ' through ' + fmtDate(p.trialEnd) : ''}.`;
@@ -64,7 +125,8 @@ function renderPlan(){
       <div class="meter" aria-hidden="true"><span style="width:${lim ? Math.round(left/lim*100) : 0}%"></span></div>
       <div class="pd">${lim} free checks a day on this connection. The team plan is unlimited for everyone at your business.</div></div>`;
     if(p.httpStatus === 401) h += `<p class="formmsg err" style="font-size:13.5px">${esc(p.error)}</p>`;
-    h += `<div class="stack"><a class="btn block" href="${STRIPE_TRIAL}">Start 14-day free trial</a></div>`;
+    h += billingChoiceHtml();
+    h += `<div class="stack"><a class="btn block" data-plan-link href="${esc(planUrl())}">Start 14-day free trial</a></div>`;
     h += `<div style="margin-top:16px">${keyForm('Already subscribed? Paste your team access key')}</div>`;
     h += `<p style="font-size:13.5px;margin-top:6px">Lost your key or need to manage billing? ${p.portalLogin ? `<a href="${esc(p.portalLogin)}">Sign in to billing</a> with your email, or e` : 'E'}mail <a href="mailto:${CONTACT}">${CONTACT}</a>.</p>`;
   }
@@ -150,5 +212,6 @@ function build(){
 }
 if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', build); else build();
 
-window.SS = { getKey, headers, refreshPlan, updateQuota, onPlan: f => listeners.push(f), setKey: k => { store.set('ss-team-key', k); refreshPlan(); }, trialUrl: STRIPE_TRIAL };
+window.SS = { getKey, headers, refreshPlan, updateQuota, onPlan: f => listeners.push(f), setKey: k => { store.set('ss-team-key', k); refreshPlan(); }, trialUrl: STRIPE_TRIAL, planUrl, billingChoiceHtml };
+loadPricing();
 })();
