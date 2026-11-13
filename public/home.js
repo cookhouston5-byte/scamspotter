@@ -31,7 +31,7 @@ form.addEventListener('submit', async e => {
   try{
     const r = await fetch('/api/analyze', { method:'POST', headers: SS.headers({ 'Content-Type':'application/json' }), body: JSON.stringify(input) });
     const j = await r.json();
-    if(r.status === 402){ out.innerHTML = `<div class="mini"><p style="margin:0 0 10px"><b>${esc(j.error)}</b> Come back tomorrow, or get unlimited checks for your whole team.</p><div class="ctas"><a class="btn sm" href="${SS.trialUrl}">Start 14-day free trial</a><button class="btn ghost sm" type="button" data-menu="plan">I have a team key</button></div></div>`; SS.updateQuota(j.plan); return; }
+    if(r.status === 402){ out.innerHTML = `<div class="mini"><p style="margin:0 0 10px"><b>${esc(j.error)}</b> Come back tomorrow, or get unlimited checks for your whole team.</p>${SS.billingChoiceHtml()}<div class="ctas"><a class="btn sm" data-plan-link href="${esc(SS.planUrl())}">Start 14-day free trial</a><button class="btn ghost sm" type="button" data-menu="plan">I have a team key</button></div></div>`; SS.updateQuota(j.plan); return; }
     if(!r.ok) throw new Error(j.error || 'Something went wrong.');
     SS.updateQuota(j.plan);
     try{ sessionStorage.setItem('ss-last', JSON.stringify({ input, result: j })); }catch(e){}

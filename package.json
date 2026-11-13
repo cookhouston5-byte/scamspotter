@@ -8,7 +8,7 @@
   },
   "scripts": {
     "start": "node server.js",
-    "test": "node test/run.js && node test/extra.js && node test/regression.js && node test/api.js",
+    "test": "node test/run.js && node test/extra.js && node test/regression.js && node test/api.js && node test/portrait.js && node test/mascot.js && node test/stats.js && node test/pricing.js",
     "screenshots": "node shots.js"
   },
   "keywords": [],

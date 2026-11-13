@@ -66,9 +66,7 @@ function welcomeEmail({ name, key }){
     <p style="margin:0 0 4px;font-size:15px;line-height:1.6">If anything’s confusing, or a result looks wrong, just reply to this email. It comes straight to me.</p>
   </td></tr>
   <tr><td style="padding:16px 32px 28px">
-    <table role="presentation" cellspacing="0" cellpadding="0"><tr>
-      <td><img src="${SITE}/img/houston-avatar.jpg" width="48" height="48" alt="" style="border-radius:50%;display:block"></td>
-      <td style="padding-left:12px;font-size:14px;line-height:1.4">Houston Cook<br><span style="color:#6f6257">Founder, ScamSpotter · Anchorage, Alaska</span></td></tr></table>
+    <p style="margin:0;font-size:14px;line-height:1.4">Houston Cook<br><span style="color:#6f6257">Founder, ScamSpotter · Anchorage, Alaska</span></p>
   </td></tr>
 </table>
 <p style="font-family:Arial,sans-serif;font-size:12px;color:#9a8c7f;margin:14px 0 0">ScamSpotter · Anchorage, Alaska · <a href="${SITE}/privacy" style="color:#9a8c7f">Privacy</a></p>

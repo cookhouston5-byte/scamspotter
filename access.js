@@ -59,9 +59,11 @@ async function planInfo(customerId, issuedAt){
   const s = (subs.data || []).sort((a,b) => order.indexOf(a.status) - order.indexOf(b.status))[0];
   if(!s) return { plan:'team', status:'none', details:true };
   const item = s.items && s.items.data && s.items.data[0];
+  const price = item && (item.price || item.plan);
   const periodEnd = s.current_period_end || (item && item.current_period_end) || null;
+  const interval = price ? ((price.recurring && price.recurring.interval) || price.interval || null) : null;
   return { plan:'team', status:s.status, details:true, trialEnd:s.trial_end || null, periodEnd,
-    cancelAtPeriodEnd:!!s.cancel_at_period_end, amount: item && item.price ? item.price.unit_amount : null };
+    cancelAtPeriodEnd:!!s.cancel_at_period_end, amount: price && price.unit_amount != null ? price.unit_amount : null, interval };
 }
 
 // Is this team allowed unlimited checks?
@@ -83,6 +85,7 @@ async function isActiveCustomer(customerId, issuedAt){
   let ok, ttl = CONFIRMED_TTL, at = Date.now(), confirmed = true;
   try{
     const subs = await stripeGet('subscriptions?status=all&limit=10&customer=' + encodeURIComponent(customerId));
+    // Monthly and yearly are the same subscription. Access follows status, not the price interval.
     ok = (subs.data || []).some(s => ['active','trialing','past_due'].includes(s.status));
   }catch(e){
     confirmed = false; ttl = FALLBACK_TTL;

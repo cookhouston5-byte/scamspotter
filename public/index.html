@@ -32,15 +32,17 @@
 <header class="nav"><div class="wrap"><a class="logo" href="/"><img src="/logo.svg" alt="" width="28" height="28">ScamSpotter</a>
 <nav class="nav-links" aria-label="Main"><a href="#how">How it works</a><a href="#pricing">Pricing</a><a href="/about">About</a><a href="#faq">FAQ</a>
 <a class="btn sm" href="/check">Check a message</a>
-<button class="menu-btn" type="button" data-menu aria-controls="menu"><img src="/img/houston-avatar.jpg" alt="" width="24" height="24"><span class="lbl">Menu</span><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button></nav></div></header>
+<button class="menu-btn" type="button" data-menu aria-controls="menu" aria-label="Menu"><span class="lbl">Menu</span><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button></nav></div></header>
 <main>
 <section class="hero"><div class="wrap"><div>
 <span class="tag">Scam checker for small business teams</span>
 <h1>Spot the scam <em>before</em> anyone clicks, pays, or replies.</h1>
 <p class="lead">Paste a suspicious email or text. In seconds you get a clear verdict (Safe, Suspicious, or Scam), a 0–100 risk score, and the reasons in plain English.</p>
-<div class="ctas"><a class="btn" href="#scan" data-focus-scan><svg class="i"><use href="#i-reticle"/></svg>Check a message free</a><a class="btn ghost" href="https://buy.stripe.com/7sY7sL3WAdh23e80D0asg04">Start 14-day free trial</a></div>
+<div class="ctas"><a class="btn" href="#scan" data-focus-scan><svg class="i"><use href="#i-reticle"/></svg>Check a message free</a><a class="btn ghost" data-plan-link href="https://buy.stripe.com/7sY7sL3WAdh23e80D0asg04">Start 14-day free trial</a></div>
+<div class="bill bill-inline" data-billing hidden><div class="bill-seg" role="radiogroup" aria-label="Billing period"><button type="button" role="radio" data-interval="month" aria-checked="true">Monthly</button><button type="button" role="radio" data-interval="year" aria-checked="false">Yearly</button></div><span class="save" data-price-note hidden>2 months free</span></div>
 <p class="fine">5 free checks a day. No sign-up, and messages are never stored.</p>
-<div class="hello"><img src="/img/houston-avatar.jpg" alt="" width="44" height="44"><div>Built by <b>Houston Cook</b> in Anchorage, Alaska. <a href="/about">Meet Houston →</a></div></div>
+<div class="hello"><div>Built by <b>Houston Cook</b> in Anchorage, Alaska. <a href="/about">Meet Houston →</a></div></div>
+<img class="mascot hero-mascot" src="/img/knight.svg" width="190" height="340" alt="Knight in a closed helm, ScamSpotter crosshair on his shield, rifle pointed at the ground.">
 </div>
 <div class="lock" id="scan"><span class="c1"></span><span class="c2"></span>
 <form class="scanner" id="hs" novalidate>
@@ -58,7 +60,8 @@
 <div><svg class="i"><use href="#i-mountain"/></svg>Built in Alaska</div>
 </div></div>
 
-<section id="how"><div class="wrap"><div class="sec-h"><span class="tag">How it works</span><h2>Paste. Scan. Act.</h2><p>Nothing to install, no training. If you can copy and paste, you can use it.</p></div>
+<section id="how"><div class="wrap"><div class="sec-h with-mascot"><div><span class="tag">How it works</span><h2>Paste. Scan. Act.</h2><p>Nothing to install, no training. If you can copy and paste, you can use it.</p></div>
+<img class="mascot" src="/img/knight.svg" alt="" width="118" height="211"></div>
 <div class="steps">
 <div class="step"><div class="n">01<svg class="i"><use href="#i-paste"/></svg></div><h3>Paste the message</h3><p>Add the sender and subject if you have them. They sharpen the result.</p></div>
 <div class="step"><div class="n">02<svg class="i"><use href="#i-reticle"/></svg></div><h3>Get a verdict in seconds</h3><p>Checks for spoofed senders, lookalike links, payment-change requests, and pressure tactics.</p></div>
@@ -76,7 +79,6 @@
 </div></div></section>
 
 <section class="founder" id="about"><div class="wrap">
-<figure class="lock photo"><span class="c1"></span><span class="c2"></span><img src="/img/houston-plane.jpg" alt="Houston Cook smiling in a small plane’s cockpit, with icebergs and glacier ice in the water below" width="1200" height="900" loading="lazy"></figure>
 <div><span class="tag">Who’s behind it</span><h2>Hi, I’m Houston.</h2>
 <p>I built ScamSpotter in Anchorage, Alaska, for small businesses like the ones around me: the shops, offices, and crews where one person pays the bills and answers the email.</p>
 <p>Scam messages keep getting more convincing, and one wrong reply to a fake invoice or a “new bank details” email can cost thousands of dollars that are hard to get back. I wanted a check that anyone on the team can run in seconds, with no jargon.</p>
@@ -85,14 +87,17 @@
 <p style="margin-top:6px"><a href="/about">Read the full story →</a></p></div>
 </div></section>
 
-<section id="pricing"><div class="wrap"><div class="sec-h"><span class="tag">Pricing</span><h2>Free to try. One simple price for the team.</h2><p>One plan covers your whole business, with no per-seat fees.</p></div>
+<section id="pricing"><div class="wrap"><div class="sec-h"><span class="tag">Pricing</span><h2>Free to try. One plan for the team.</h2><p>One plan covers your whole business, with no per-seat fees. <span data-yearly-copy hidden>Yearly is $290, two months free.</span></p></div>
 <div class="plans">
 <div class="price"><h3>Free</h3><div class="amt">$0</div>
 <ul><li>5 checks a day</li><li>Every scam check and plain-English reason</li><li>No sign-up</li></ul>
 <a class="btn ghost block" href="/check">Check a message</a></div>
-<div class="price best"><span class="badge">14 days free</span><h3>Team</h3><div class="amt">$29<span> / month per business</span></div>
+<div class="price best"><span class="badge">14 days free</span><h3>Team</h3>
+<div class="bill" data-billing hidden><div class="bill-seg" role="radiogroup" aria-label="Billing period"><button type="button" role="radio" data-interval="month" aria-checked="true">Monthly</button><button type="button" role="radio" data-interval="year" aria-checked="false">Yearly</button></div></div>
+<div class="amt" id="team-price">$29<span class="unit" data-price-unit> / month per business</span></div>
+<p class="save" data-price-note hidden>2 months free</p>
 <ul><li>Unlimited checks for everyone on your team</li><li>One access key to share with staff</li><li>See or cancel your plan anytime from the Menu</li><li>Direct line to the founder for help</li><li class="soon">Forward-to-check email inbox<em>COMING SOON, INCLUDED</em></li></ul>
-<a class="btn block" href="https://buy.stripe.com/7sY7sL3WAdh23e80D0asg04">Start your free trial<svg class="i"><use href="#i-arrow"/></svg></a>
+<a class="btn block" data-plan-link href="https://buy.stripe.com/7sY7sL3WAdh23e80D0asg04">Start your free trial<svg class="i"><use href="#i-arrow"/></svg></a>
 <p class="small">Secure checkout by Stripe. You won’t be charged until your 14-day trial ends. <a href="/terms">Terms</a></p></div>
 </div></div></section>
 
@@ -102,13 +107,15 @@
 <details><summary>How does my team get unlimited checks?<svg class="i"><use href="#i-plus"/></svg></summary><p>When you start the trial, you get a team access key on screen and by email. Share it with your staff. Each person pastes it once under Menu → Your plan, and that browser gets unlimited checks. No individual accounts needed.</p></details>
 <details><summary>How do I check on or cancel my subscription?<svg class="i"><use href="#i-plus"/></svg></summary><p>Open the Menu (top right) and go to Your plan. It shows whether you’re on the trial, when it ends, and your next renewal date. Tap “Manage subscription” to update your card, download invoices, or cancel.</p></details>
 <details><summary>Can staff forward emails instead of pasting them?<svg class="i"><use href="#i-plus"/></svg></summary><p>A forwarding inbox (forward a message, get the verdict by reply) is in the works and will be included in the Team plan. Today, staff paste the message into the checker.</p></details>
-<details><summary>What happens after the free trial?<svg class="i"><use href="#i-plus"/></svg></summary><p>It’s $29 per month for your whole business, with unlimited staff. You add a card at checkout, but you won’t be charged until the 14-day trial ends. Cancel before then and you pay nothing.</p></details>
+<details><summary>What happens after the free trial?<svg class="i"><use href="#i-plus"/></svg></summary><p>It’s $29 per month for your whole business, with unlimited staff. <span data-yearly-copy hidden>Yearly is $290, which is two months free, with the same features. </span>You add a card at checkout, but you won’t be charged until the 14-day trial ends. Cancel before then and you pay nothing.</p></details>
 <details><summary>Who’s behind ScamSpotter?<svg class="i"><use href="#i-plus"/></svg></summary><p>Houston Cook, in Anchorage, Alaska. <a href="/about">Read more</a> or email <a href="mailto:hello@scamspotter.app">hello@scamspotter.app</a>.</p></details>
 </div></div></section>
 
 <section class="cta"><div class="wrap"><div class="band"><svg class="i ret" aria-hidden="true" style="stroke-width:.6"><use href="#i-reticle"/></svg>
-<div><h2>Put every suspicious message in the crosshairs.</h2><p>14 days free, then $29/month for your whole business.</p></div>
-<a class="btn" href="https://buy.stripe.com/7sY7sL3WAdh23e80D0asg04">Start free trial</a></div></div></section>
+<img class="mascot band-mascot" src="/img/knight.svg" alt="" width="92" height="165">
+<div><h2>Put every suspicious message in the crosshairs.</h2><p data-price-line>14 days free, then $29/month for your whole business.</p></div>
+<div class="band-buy"><div class="bill" data-billing hidden><div class="bill-seg" role="radiogroup" aria-label="Billing period"><button type="button" role="radio" data-interval="month" aria-checked="true">Monthly</button><button type="button" role="radio" data-interval="year" aria-checked="false">Yearly</button></div><span class="save" data-price-note hidden>2 months free</span></div>
+<a class="btn" data-plan-link href="https://buy.stripe.com/7sY7sL3WAdh23e80D0asg04">Start free trial</a></div></div></div></section>
 
 <section id="feedback" style="padding-top:0"><div class="wrap"><div class="sec-h"><span class="tag">Feedback</span><h2>Suggest a fix</h2><p>Spotted a bug, a wrong verdict, or something confusing? Your message goes privately to Houston.</p></div>
 <form class="grid2 fb" id="fb" novalidate>

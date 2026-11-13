@@ -16,6 +16,78 @@ const app = express(); app.set('trust proxy', /^\d+$/.test(TRUST_PROXY) ? Number
 app.use((req,res,next)=>{ res.set({ 'Strict-Transport-Security':'max-age=31536000; includeSubDomains', 'X-Content-Type-Options':'nosniff',
   'X-Frame-Options':'DENY', 'Referrer-Policy':'strict-origin-when-cross-origin', 'Permissions-Policy':'camera=(), microphone=(), geolocation=()' }); next(); });
 
+// Anonymous, cookie-free counts. Page views are HTML responses only; bots, static files, and /api/health are skipped.
+// A visitor is a daily-salted hash of IP + user agent. The raw values are never written.
+const STATS_FILE = path.join(DATA_DIR, 'stats.json');
+const BOT_UA = /bot|crawl|spider|curl|wget|python|headless|monitor|uptime|render/i;
+const statsState = { days: {} };
+function loadStats(){
+  try{
+    const j = JSON.parse(fs.readFileSync(STATS_FILE, 'utf8'));
+    if(j && j.days && typeof j.days === 'object') statsState.days = j.days;
+  }catch(e){ if(e.code !== 'ENOENT') console.error('stats read failed:', e.message); }
+}
+loadStats();
+function isBot(req){
+  const ua = String(req.get('user-agent') || '').trim();
+  return !ua || BOT_UA.test(ua);
+}
+function pagePath(req){
+  let p = String(req.path || '/');
+  try{ p = decodeURIComponent(p); }catch{}
+  if(p.length > 1 && p.endsWith('/')) p = p.slice(0, -1);
+  if(p.toLowerCase().endsWith('.html')) p = p.slice(0, -5) || '/';
+  if(!p || p.startsWith('/api') || /\.[a-z0-9]{1,8}$/i.test(p)) return null;
+  return p;
+}
+function visitorHash(ip, ua, date){
+  return crypto.createHash('sha256').update(date + '\n' + ip + '\n' + ua).digest('hex').slice(0, 16);
+}
+function dayBucket(date){
+  if(!statsState.days[date]) statsState.days[date] = { views: 0, paths: {}, uniques: 0, visitors: [], checks: 0, feedback: 0, reviews: 0 };
+  return statsState.days[date];
+}
+function pruneStats(){
+  const keep = new Set();
+  for(let i = 0; i < 60; i++) keep.add(new Date(Date.now() - i * 864e5).toISOString().slice(0, 10));
+  for(const k of Object.keys(statsState.days)) if(!keep.has(k)) delete statsState.days[k];
+}
+function saveStats(){
+  pruneStats();
+  try{
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    const tmp = STATS_FILE + '.tmp';
+    fs.writeFileSync(tmp, JSON.stringify(statsState));
+    fs.renameSync(tmp, STATS_FILE);
+  }catch(e){ console.error('stats write failed:', e.message); }
+}
+function logStats(date){
+  const d = statsState.days[date]; if(!d) return;
+  console.log(`[stats] ${date} pages=${d.views} uniques=${d.uniques} checks=${d.checks} feedback=${d.feedback} reviews=${d.reviews}`);
+}
+function bumpStat(kind){
+  const date = today(); const d = dayBucket(date); d[kind] = (d[kind] || 0) + 1;
+  saveStats(); logStats(date);
+}
+function recordPage(req){
+  if(isBot(req)) return;
+  const p = pagePath(req); if(!p) return;
+  const date = today(); const d = dayBucket(date);
+  d.views++; d.paths[p] = (d.paths[p] || 0) + 1;
+  const h = visitorHash(clientIp(req), String(req.get('user-agent') || ''), date);
+  if(!Array.isArray(d.visitors)) d.visitors = [];
+  if(!d.visitors.includes(h) && d.visitors.length < 20000){ d.visitors.push(h); d.uniques = d.visitors.length; }
+  saveStats(); logStats(date);
+}
+app.use((req, res, next) => {
+  res.on('finish', () => {
+    if(req.method !== 'GET' || res.statusCode !== 200) return;
+    if(!String(res.getHeader('content-type') || '').includes('text/html')) return;
+    recordPage(req);
+  });
+  next();
+});
+
 // The site sits behind Cloudflare, which passes the visitor's real IP in CF-Connecting-IP. That header is only
 // trusted when the request actually reached us from a Cloudflare address (req.ip, as reported by Render's proxy);
 // anyone hitting the origin directly could otherwise set it to dodge the free limit and rate limits.
@@ -48,6 +120,7 @@ app.post('/api/stripe/webhook', express.raw({ type:'*/*', limit:'1mb' }), async 
   seenEvents.add(ev.id); if(seenEvents.size > 5000) seenEvents.clear();
   const o = (ev.data && ev.data.object) || {};
   try{
+    // A yearly price uses this same checkout. The subscription status, not the interval, is what the access check reads.
     if(ev.type === 'checkout.session.completed'){
       const email = o.customer_details?.email || o.customer_email, name = o.customer_details?.name || '';
       const key = makeKey(o.customer, o.created ? o.created * 1000 : Date.now());
@@ -65,6 +138,21 @@ app.get('/subscribed', (req,res)=>res.redirect(302, '/welcome'));
 app.use(express.static(path.join(__dirname,'public'), { extensions:['html'] }));
 
 app.get('/api/health', (req,res)=>res.json({ ok:true, llm: !!process.env.OPENAI_API_KEY }));
+
+// Public prices. The monthly checkout link is fixed. Yearly checkout appears only when YEARLY_PAYMENT_LINK is an https URL.
+const MONTHLY_PAYMENT_LINK = 'https://buy.stripe.com/7sY7sL3WAdh23e80D0asg04';
+function yearlyPaymentLink(){
+  const u = String(process.env.YEARLY_PAYMENT_LINK || '').trim();
+  return /^https:\/\/\S+$/.test(u) ? u : '';
+}
+app.get('/api/pricing', (req,res)=>{
+  const yearly = yearlyPaymentLink();
+  res.json({
+    trialDays: 14,
+    monthly: { amount: 29, interval: 'month', url: MONTHLY_PAYMENT_LINK },
+    yearly: yearly ? { amount: 290, interval: 'year', url: yearly, note: '2 months free' } : null
+  });
+});
 
 // Plan / quota helpers
 const today = () => new Date().toISOString().slice(0,10);
@@ -101,6 +189,7 @@ app.post('/api/analyze', limiter(30, 60000, 'Too many checks in a short time. Pl
     result.verdict = result.score>=55?'Scam':result.score>=25?'Suspicious':'Safe';
     result.engine = 'heuristic+llm';
   }
+  bumpStat('checks');
   res.json(result);
 });
 
@@ -157,7 +246,7 @@ app.post('/api/feedback', limiter(5, 600000, 'Thanks! You\'ve sent a few already
   if(email && !validEmail(email)) return res.status(400).json({ error:'That email doesn\'t look right. Leave it blank or fix it.' });
   const entry = { id: crypto.randomUUID(), at: new Date().toISOString(), name: clean(b.name,100), email: clean(email,200),
     page: clean(b.page,200), message: clean(raw,2000), ip: ipHash(req) };
-  appendLine(FEEDBACK, entry); console.log('[feedback]', JSON.stringify(entry));
+  appendLine(FEEDBACK, entry); console.log('[feedback]', JSON.stringify(entry)); bumpStat('feedback');
   notifyOwner('New feedback', { Name: plain(b.name,100), Email: email, Page: plain(b.page,200), Message: plain(raw,2000) });
   res.json({ ok:true });
 });
@@ -173,19 +262,34 @@ app.post('/api/reviews', limiter(3, 600000, 'Thanks! You\'ve sent a few already.
   if(comment.length > 1000) return res.status(400).json({ error:'Comment too long (1,000 characters max).' });
   const entry = { id: crypto.randomUUID(), at: new Date().toISOString(), name: clean(name,80), business: clean(b.business,120),
     rating, comment: clean(comment,1000), ip: ipHash(req), approved:false };
-  appendLine(REVIEWS, entry); console.log('[review]', JSON.stringify(entry));
+  appendLine(REVIEWS, entry); console.log('[review]', JSON.stringify(entry)); bumpStat('reviews');
   notifyOwner(`New ${rating}-star review (needs approval)`, { Name: plain(name,80), Business: plain(b.business,120), Rating: rating + '/5', Comment: plain(comment,1000),
     'To publish it': 'Add it to public/reviews.json and redeploy.' });
   res.json({ ok:true });
 });
 
-// Owner-only read: disabled unless FEEDBACK_TOKEN is set; send it as "Authorization: Bearer <token>". ?type=reviews for reviews.
-app.get('/api/feedback', (req,res)=>{
+// Owner-only read: disabled unless FEEDBACK_TOKEN is set; send it as "Authorization: Bearer <token>".
+function ownerAuthorized(req){
   const tok = process.env.FEEDBACK_TOKEN; const got = String(req.get('authorization')||'').replace(/^Bearer\s+/i,'');
-  if(!tok || got.length !== tok.length || !crypto.timingSafeEqual(Buffer.from(got), Buffer.from(tok))) return res.status(404).json({ error:'Not found' });
+  return !!(tok && got.length === tok.length && crypto.timingSafeEqual(Buffer.from(got), Buffer.from(tok)));
+}
+app.get('/api/feedback', (req,res)=>{
+  if(!ownerAuthorized(req)) return res.status(404).json({ error:'Not found' });
   const file = req.query.type === 'reviews' ? REVIEWS : FEEDBACK;
   let items = []; try{ items = fs.readFileSync(file,'utf8').split('\n').filter(Boolean).map(l=>JSON.parse(l)); }catch{}
   res.json({ count: items.length, items });
+});
+
+// Owner-only daily totals for the last 60 days. Same FEEDBACK_TOKEN check as /api/feedback; visitor hashes stay on disk.
+app.get('/api/stats', (req,res)=>{
+  if(!ownerAuthorized(req)) return res.status(404).json({ error:'Not found' });
+  const allow = new Set();
+  for(let i = 0; i < 60; i++) allow.add(new Date(Date.now() - i * 864e5).toISOString().slice(0, 10));
+  const days = Object.keys(statsState.days).filter(d => allow.has(d)).sort().reverse().map(date => {
+    const d = statsState.days[date];
+    return { date, views: d.views || 0, uniques: d.uniques || 0, checks: d.checks || 0, feedback: d.feedback || 0, reviews: d.reviews || 0, paths: d.paths || {} };
+  });
+  res.json({ days });
 });
 
 app.use('/api', (req,res)=>res.status(404).json({ error:'Not found' }));
@@ -204,8 +308,9 @@ function envReport(){
   miss('STRIPE_WEBHOOK_SECRET', 'Stripe webhooks are rejected, so no welcome email or new-trial notice is sent.');
   miss('RESEND_API_KEY', 'emails are logged instead of sent.');
   miss('OWNER_EMAIL', 'feedback, reviews and new trials are not emailed to you.');
-  miss('DATA_DIR', 'feedback/reviews are written to ./data, which is wiped on every Render deploy.');
+  miss('DATA_DIR', 'feedback, reviews, and visitor stats are written to ./data, which is wiped on every Render deploy. Daily totals are also logged.');
   miss('OPENAI_API_KEY', 'AI second opinion is off; rule-based checks only.');
+  miss('YEARLY_PAYMENT_LINK', 'the yearly plan is hidden and trial buttons stay on the monthly checkout.');
 }
 const PORT = process.env.PORT || 3000;
 if(require.main===module){ envReport(); app.listen(PORT, ()=>console.log('ScamSpotter on http://localhost:'+PORT)); }

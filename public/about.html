@@ -32,7 +32,7 @@
 <header class="nav"><div class="wrap"><a class="logo" href="/"><img src="/logo.svg" alt="" width="28" height="28">ScamSpotter</a>
 <nav class="nav-links" aria-label="Main"><a href="/#how">How it works</a><a href="/#pricing">Pricing</a><a href="/about">About</a><a href="/#faq">FAQ</a>
 <a class="btn sm" href="/check">Check a message</a>
-<button class="menu-btn" type="button" data-menu aria-controls="menu"><img src="/img/houston-avatar.jpg" alt="" width="24" height="24"><span class="lbl">Menu</span><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button></nav></div></header>
+<button class="menu-btn" type="button" data-menu aria-controls="menu" aria-label="Menu"><span class="lbl">Menu</span><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button></nav></div></header>
 <main>
 <section class="about-hero"><div class="wrap"><div><span class="tag">About</span><h1>A scam checker built in Alaska, for the people who pay the bills.</h1>
 <p>ScamSpotter is a small, independent business run by Houston Cook in Anchorage.</p></div>
@@ -54,7 +54,8 @@
 <div class="prose"><h2 style="margin-top:0">Say hello</h2>
 <p>If ScamSpotter helps your business, or a result looks wrong, I’d love to hear about it. Email <a href="mailto:hello@scamspotter.app">hello@scamspotter.app</a>, use the <a href="/#feedback">feedback form</a>, or leave a review in the <button class="linkbtn" type="button" data-menu="reviews">Menu</button>.</p>
 <p class="sig">Houston Cook</p>
-<div class="ctas" style="margin-top:18px"><a class="btn" href="/check"><svg class="i"><use href="#i-reticle"/></svg>Check a message</a><a class="btn ghost" href="https://buy.stripe.com/7sY7sL3WAdh23e80D0asg04">Start free trial</a></div></div>
+<div class="ctas" style="margin-top:18px"><a class="btn" href="/check"><svg class="i"><use href="#i-reticle"/></svg>Check a message</a><a class="btn ghost" data-plan-link href="https://buy.stripe.com/7sY7sL3WAdh23e80D0asg04">Start free trial</a></div>
+<div class="bill bill-inline" data-billing hidden><div class="bill-seg" role="radiogroup" aria-label="Billing period"><button type="button" role="radio" data-interval="month" aria-checked="true">Monthly</button><button type="button" role="radio" data-interval="year" aria-checked="false">Yearly</button></div><span class="save" data-price-note hidden>2 months free</span></div></div>
 </div></div>
 </div></section></main>
 <style>@media (max-width:900px){.about-split{grid-template-columns:1fr!important;gap:28px!important}}</style>
