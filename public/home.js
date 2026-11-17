@@ -5,7 +5,8 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt
 const form = $('hs'), ta = $('hs-text'), out = $('hs-out'), go = $('hs-go'), quota = $('hs-quota');
 
 function showQuota(p){ if(!p) return;
-  if(p.plan === 'team' && p.httpStatus !== 401) quota.textContent = 'Team plan · unlimited';
+  if(p.plan === 'solo' && p.httpStatus !== 401) quota.textContent = 'Solo plan · one person';
+  else if(p.plan === 'team' && p.httpStatus !== 401) quota.textContent = 'Business plan · unlimited';
   else if(p.remaining != null) quota.textContent = `${p.remaining} of ${p.limit} free checks left today`; }
 if(window.SS){ SS.onPlan(showQuota); SS.refreshPlan(); }
 
@@ -31,7 +32,8 @@ form.addEventListener('submit', async e => {
   try{
     const r = await fetch('/api/analyze', { method:'POST', headers: SS.headers({ 'Content-Type':'application/json' }), body: JSON.stringify(input) });
     const j = await r.json();
-    if(r.status === 402){ out.innerHTML = `<div class="mini"><p style="margin:0 0 10px"><b>${esc(j.error)}</b> Come back tomorrow, or get unlimited checks for your whole team.</p>${SS.billingChoiceHtml()}<div class="ctas"><a class="btn sm" data-plan-link href="${esc(SS.planUrl())}">Start 14-day free trial</a><button class="btn ghost sm" type="button" data-menu="plan">I have a team key</button></div></div>`; SS.updateQuota(j.plan); return; }
+    if(r.status === 402 && j.upgrade){ out.innerHTML = `<div class="mini"><p style="margin:0 0 10px"><b>Solo is for one person.</b> ${esc(j.error)} Business is $29/month or $290/year for unlimited staff.</p><div class="ctas"><a class="btn sm" data-plan-link href="${esc(SS.planUrl())}">Upgrade to Business</a></div></div>`; return; }
+    if(r.status === 402){ out.innerHTML = `<div class="mini"><p style="margin:0 0 10px"><b>${esc(j.error)}</b> Come back tomorrow, or start a trial. Solo is $9 for one person. Business is $29 for unlimited staff.</p>${SS.billingChoiceHtml()}<div class="ctas"><a class="btn ghost sm" data-solo-link hidden>Start Solo trial</a><a class="btn sm" data-plan-link href="${esc(SS.planUrl())}">Start Business trial</a><button class="btn ghost sm" type="button" data-menu="plan">I have a key</button></div></div>`; SS.applyBilling(); SS.updateQuota(j.plan); return; }
     if(!r.ok) throw new Error(j.error || 'Something went wrong.');
     SS.updateQuota(j.plan);
     try{ sessionStorage.setItem('ss-last', JSON.stringify({ input, result: j })); }catch(e){}

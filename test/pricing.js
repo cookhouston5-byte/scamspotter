@@ -3,7 +3,7 @@ const assert = require('assert'); const crypto = require('crypto'); const fs = r
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ss-price-'));
 const root = path.join(__dirname, '..');
 Object.assign(process.env, { DATA_DIR: tmp, FREE_CHECKS_PER_DAY: '3', ACCESS_KEY_SECRET: 'test-secret', STRIPE_WEBHOOK_SECRET: 'whsec_test' });
-for(const k of ['STRIPE_SECRET_KEY','RESEND_API_KEY','OWNER_EMAIL','OPENAI_API_KEY','STRIPE_PORTAL_LOGIN_URL','FEEDBACK_FILE','FEEDBACK_TOKEN','YEARLY_PAYMENT_LINK']) delete process.env[k];
+for(const k of ['STRIPE_SECRET_KEY','RESEND_API_KEY','OWNER_EMAIL','OPENAI_API_KEY','STRIPE_PORTAL_LOGIN_URL','FEEDBACK_FILE','FEEDBACK_TOKEN','YEARLY_PAYMENT_LINK','SOLO_MONTHLY_PAYMENT_LINK','SOLO_YEARLY_PAYMENT_LINK']) delete process.env[k];
 const app = require('../server');
 const { isActiveCustomer, planInfo, _subCache } = require('../access');
 const MONTHLY = 'https://buy.stripe.com/7sY7sL3WAdh23e80D0asg04';
@@ -31,20 +31,20 @@ function yearlySub(status){
     process.env.YEARLY_PAYMENT_LINK = YEARLY;
     j = await (await fetch(B + '/api/pricing')).json();
     ok(j.yearly && j.yearly.url === YEARLY && j.yearly.amount === 290 && j.yearly.interval === 'year' && j.yearly.note === '2 months free', 'yearly checkout is $290/year with the note when the link is set');
-    ok(j.monthly.url === MONTHLY, 'the monthly link stays the existing Stripe payment link');
+    ok(j.monthly.url === MONTHLY && j.solo === null, 'the monthly link stays put and Solo stays hidden without its links');
 
     const home = read('public/index.html');
     const links = [...home.matchAll(/data-plan-link href="([^"]+)"/g)].map(m => m[1]);
     ok(links.length >= 3 && links.every(u => u === MONTHLY), 'pricing, hero, and banner trial buttons start on the monthly link');
     ok(home.includes('data-interval="year"') && home.includes('2 months free') && home.includes('data-billing'), 'the homepage has a Monthly / Yearly choice and the free-months note');
-    ok(home.includes('$29') && home.includes('Yearly is $290'), 'the page states both prices');
+    ok(home.includes('$29') && home.includes('Business $290') && home.includes('$9') && home.includes('For one person') && home.includes('Unlimited staff'), 'the page states Solo and Business prices');
     ok(!home.includes(YEARLY), 'the real yearly link is not hardcoded in the page');
     const about = read('public/about.html');
     ok(about.includes('data-plan-link href="' + MONTHLY + '"') && about.includes('data-interval="year"'), 'the about page trial button can switch to yearly');
     const terms = read('public/terms.html');
-    ok(terms.includes('$29 per month or $290 per year') && terms.includes('two months free') && terms.includes('14-day free trial') && terms.includes('same features'), 'terms describe the yearly option, the trial, and the same features');
+    ok(terms.includes('$9 per month or $90 per year') && terms.includes('$29 per month or $290 per year') && terms.includes('two months free') && terms.includes('14-day free trial') && terms.includes('same scam checks'), 'terms describe Solo, Business, the trial, and the same checks');
     const js = read('public/site.js');
-    ok(js.includes("'$290'") && js.includes("'$29'") && js.includes('2 months free'), 'the billing switch updates the price between $29 and $290');
+    ok(js.includes('$290/year') && js.includes('$29/month') && js.includes('$90/year') && js.includes('$9/month') && js.includes('2 months free'), 'the billing switch updates Solo and Business prices');
 
     const subs = {
       cus_YEAR_ACTIVE: yearlySub('active'),

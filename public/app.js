@@ -15,7 +15,8 @@ const box = document.querySelector('.samples');
   b.dataset.id = s.id; b.onclick = () => { $('sender').value = s.sender; $('subject').value = s.subject; $('text').value = s.text; run(); }; box.appendChild(b); });
 
 function showQuota(p){ if(!p) return; const q = $('quota');
-  if(p.plan === 'team' && p.httpStatus !== 401) q.textContent = 'Team plan · unlimited checks';
+  if(p.plan === 'solo' && p.httpStatus !== 401) q.textContent = p.upgrade ? 'Solo plan · one person' : 'Solo plan · this browser';
+  else if(p.plan === 'team' && p.httpStatus !== 401) q.textContent = 'Business plan · unlimited checks';
   else if(p.remaining != null) q.textContent = `${p.remaining} of ${p.limit} free checks left today`; }
 SS.onPlan(showQuota); SS.refreshPlan();
 
@@ -24,16 +25,21 @@ async function run(e){ e && e.preventDefault(); const out = $('out'); if(!$('tex
   try{
     const r = await fetch('/api/analyze', { method:'POST', headers: SS.headers({ 'Content-Type':'application/json' }), body: JSON.stringify({ text: $('text').value, sender: $('sender').value, subject: $('subject').value }) });
     const j = await r.json();
-    if(r.status === 402){ SS.updateQuota(j.plan); out.innerHTML = limitHtml(j); return; }
+    if(r.status === 402){ if(!j.upgrade) SS.updateQuota(j.plan); out.innerHTML = j.upgrade ? upgradeHtml(j) : limitHtml(j); SS.applyBilling(); return; }
     if(!r.ok) throw new Error(j.error); SS.updateQuota(j.plan); render(j);
   }catch(err){ out.innerHTML = '<div class="empty">' + esc(err.message || 'Something went wrong.') + '</div>'; }
   finally{ $('go').disabled = false; goLabel.textContent = 'Check message'; if(innerWidth < 900) out.scrollIntoView({ behavior:'smooth' }); } }
 
 function limitHtml(j){
   return `<div class="limit"><svg class="i" viewBox="0 0 24 24" style="width:56px;height:56px;color:var(--accent);stroke-width:1.2" aria-hidden="true"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="1.5"/><path d="M12 2.5v4M12 17.5v4M2.5 12h4M17.5 12h4"/></svg>
-  <h2>That’s today’s free checks</h2><p>${esc(j.error)} Free checks reset tomorrow. For unlimited checks for your whole team, start the 14-day free trial.</p>
+  <h2>That’s today’s free checks</h2><p>${esc(j.error)} Free checks reset tomorrow. Solo is $9 for one person. Business is $29 for unlimited staff. Both include a 14-day free trial.</p>
   ${j.plan && j.plan.badKey ? '<p style="color:var(--bad)">Your saved team key wasn’t accepted. Check it under Your plan.</p>' : ''}
-  ${SS.billingChoiceHtml()}<div class="ctas"><a class="btn" data-plan-link href="${esc(SS.planUrl())}">Start 14-day free trial</a><button class="btn ghost" type="button" data-menu="plan">I have a team key</button></div></div>`;
+  ${SS.billingChoiceHtml()}<div class="ctas"><a class="btn ghost" data-solo-link hidden>Start Solo trial</a><a class="btn" data-plan-link href="${esc(SS.planUrl())}">Start Business trial</a><button class="btn ghost" type="button" data-menu="plan">I have a key</button></div></div>`;
+}
+function upgradeHtml(j){
+  return `<div class="limit"><svg class="i" viewBox="0 0 24 24" style="width:56px;height:56px;color:var(--accent);stroke-width:1.2" aria-hidden="true"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="1.5"/><path d="M12 2.5v4M12 17.5v4M2.5 12h4M17.5 12h4"/></svg>
+  <h2>Solo is for one person</h2><p>${esc(j.error)} Business is $29/month or $290/year for unlimited staff, with the same checker and the same 14-day trial.</p>
+  <div class="ctas"><a class="btn" data-plan-link href="${esc(SS.planUrl())}">Upgrade to Business</a></div></div>`;
 }
 
 const REPORT = `<div class="report"><b>Report it (takes a minute, and it helps stop the next one)</b><ul>

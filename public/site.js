@@ -2,31 +2,58 @@
 (function(){
 const STRIPE_TRIAL = 'https://buy.stripe.com/7sY7sL3WAdh23e80D0asg04';
 const CONTACT = 'hello@scamspotter.app';
-let pricing = { monthly: { url: STRIPE_TRIAL, amount: 29, interval: 'month' }, yearly: null };
+let pricing = {
+  monthly: { url: STRIPE_TRIAL, amount: 29, interval: 'month' },
+  yearly: null,
+  business: { label: 'Unlimited staff', monthly: { url: STRIPE_TRIAL, amount: 29, interval: 'month' }, yearly: null },
+  solo: null
+};
 let billing = 'month';
 const httpsUrl = u => /^https:\/\/\S+$/.test(String(u || '')) ? String(u) : '';
-const yearlyOn = () => !!(pricing.yearly && httpsUrl(pricing.yearly.url));
-const planUrl = () => (billing === 'year' && yearlyOn()) ? pricing.yearly.url : (httpsUrl(pricing.monthly && pricing.monthly.url) || STRIPE_TRIAL);
+function slot(plan, interval){
+  const p = plan === 'solo' ? pricing.solo : pricing.business;
+  if(!p) return null;
+  const s = interval === 'year' ? p.yearly : p.monthly;
+  return s && httpsUrl(s.url) ? s : null;
+}
+const yearlyOn = () => !!(slot('business', 'year') || slot('solo', 'year'));
+const planUrl = () => (slot('business', billing) || slot('business', 'month') || { url: STRIPE_TRIAL }).url;
+const soloUrl = () => { const s = slot('solo', billing); return s ? s.url : ''; };
 function setBilling(interval){
   billing = interval === 'year' && yearlyOn() ? 'year' : 'month';
   try{ localStorage.setItem('ss-billing', billing); }catch(e){}
   applyBilling();
 }
+function setAmt(id, dollars, unit){
+  const amt = document.getElementById(id); if(!amt) return;
+  const u = amt.querySelector('[data-price-unit]');
+  if(amt.firstChild) amt.firstChild.textContent = '$' + dollars;
+  if(u) u.textContent = unit;
+}
+function priceLine(){
+  const year = billing === 'year' && yearlyOn();
+  const bizYear = !!(year && slot('business', 'year'));
+  const solo = soloUrl();
+  const biz = bizYear ? '$290/year' : '$29/month';
+  if(solo) return '14 days free. Solo is ' + (year && slot('solo', 'year') ? '$90/year' : '$9/month') + ' for one person, or Business is ' + biz + ' for unlimited staff.';
+  return bizYear ? '14 days free, then $290/year for unlimited staff.' : '14 days free, then $29/month for unlimited staff.';
+}
 function applyBilling(){
   if(!yearlyOn()) billing = 'month';
+  const year = billing === 'year' && yearlyOn();
   document.querySelectorAll('[data-billing]').forEach(el => { el.hidden = !yearlyOn(); });
   document.querySelectorAll('[data-yearly-copy]').forEach(el => { el.hidden = !yearlyOn(); });
-  document.querySelectorAll('[data-plan-link]').forEach(a => { a.href = planUrl(); });
+  document.querySelectorAll('[data-plan-link]').forEach(a => { a.hidden = false; a.href = planUrl(); });
+  document.querySelectorAll('[data-solo-link]').forEach(a => { const url = soloUrl(); a.hidden = !url; if(url) a.href = url; else a.removeAttribute('href'); });
+  document.querySelectorAll('[data-solo-card]').forEach(el => { el.hidden = !soloUrl(); });
   document.querySelectorAll('[data-billing] [data-interval]').forEach(b => { b.setAttribute('aria-checked', b.dataset.interval === billing ? 'true' : 'false'); });
-  const year = billing === 'year' && yearlyOn();
-  const amt = document.getElementById('team-price');
-  if(amt){
-    const unit = amt.querySelector('[data-price-unit]');
-    if(amt.firstChild) amt.firstChild.textContent = year ? '$290' : '$29';
-    if(unit) unit.textContent = year ? ' / year per business' : ' / month per business';
-  }
-  document.querySelectorAll('[data-price-note]').forEach(n => { n.hidden = !year; });
-  document.querySelectorAll('[data-price-line]').forEach(n => { n.textContent = year ? '14 days free, then $290/year for your whole business.' : '14 days free, then $29/month for your whole business.'; });
+  const bizYear = !!(year && slot('business', 'year'));
+  const soloYear = !!(year && slot('solo', 'year'));
+  setAmt('team-price', bizYear ? 290 : 29, bizYear ? ' / year' : ' / month');
+  setAmt('solo-price', soloYear ? 90 : 9, soloYear ? ' / year' : ' / month');
+  document.querySelectorAll('[data-price-note]').forEach(n => { n.hidden = !bizYear; });
+  document.querySelectorAll('[data-solo-note]').forEach(n => { n.hidden = !soloYear; });
+  document.querySelectorAll('[data-price-line]').forEach(n => { n.textContent = priceLine(); });
   if(window.SS) window.SS.trialUrl = planUrl();
 }
 function billingChoiceHtml(){
@@ -57,7 +84,7 @@ document.addEventListener('keydown', e => {
 async function loadPricing(){
   try{
     const r = await fetch('/api/pricing');
-    if(r.ok){ const j = await r.json(); if(j && j.monthly && httpsUrl(j.monthly.url)) pricing = j; }
+    if(r.ok){ const j = await r.json(); if(j && j.monthly && httpsUrl(j.monthly.url)){ pricing = Object.assign({}, pricing, j); if(!pricing.business) pricing.business = { monthly: j.monthly, yearly: j.yearly || null }; } }
   }catch(e){}
   try{ const saved = localStorage.getItem('ss-billing'); if(saved === 'year' || saved === 'month') billing = saved; }catch(e){}
   applyBilling();
@@ -87,7 +114,17 @@ applyTheme(); if(mq && mq.addEventListener) mq.addEventListener('change', applyT
 
 // ---- team key + plan ----
 const getKey = () => store.get('ss-team-key') || '';
-const headers = (extra) => Object.assign({}, extra || {}, getKey() ? { 'X-Team-Key': getKey() } : {});
+function seatId(){
+  let id = store.get('ss-seat');
+  if(!/^[A-Za-z0-9]{24}$/.test(id || '')){
+    const bytes = new Uint8Array(12);
+    crypto.getRandomValues(bytes);
+    id = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+    store.set('ss-seat', id);
+  }
+  return id;
+}
+const headers = (extra) => Object.assign({ 'X-Seat': seatId() }, extra || {}, getKey() ? { 'X-Team-Key': getKey() } : {});
 let lastPlan = null; const listeners = [];
 async function refreshPlan(){
   try{ const r = await fetch('/api/plan', { headers: headers() }); const j = await r.json(); j.httpStatus = r.status; lastPlan = j; }
@@ -104,33 +141,39 @@ function renderPlan(){
   if(p.error === 'offline'){ el.innerHTML = '<p>Couldn’t load your plan. Check your connection and try again.</p>'; return; }
   const keyForm = (label) => `<form class="keyform"><label for="dm-key">${label}</label><div class="keyrow"><input id="dm-key" placeholder="SS-cus_…" autocomplete="off" spellcheck="false" value="${esc(getKey())}"><button class="btn sm" type="submit">Save</button></div><p class="formmsg" role="status" style="font-size:13.5px;margin-top:6px"></p></form>`;
   let h = '';
-  if(p.plan === 'team' && p.httpStatus !== 401){
+  const paid = (p.plan === 'team' || p.plan === 'solo') && p.httpStatus !== 401;
+  if(paid){
+    const solo = p.plan === 'solo' || p.tier === 'solo';
     const st = p.status, map = { active:['Active','ok'], trialing:['Free trial','ok'], past_due:['Payment due','warn'], unpaid:['Unpaid','bad'], canceled:['Canceled','bad'], none:['No subscription','bad'], unknown:['Checking…','free'], unverified_trial:['Free trial','ok'], unverified:['Not verified','bad'] };
     const [label, cls] = map[st] || [st, 'warn'];
     let detail = '';
-    if(st === 'trialing' && p.trialEnd) detail = `Your free trial ends ${fmtDate(p.trialEnd)}. ${p.cancelAtPeriodEnd ? 'It won’t renew.' : 'Then ' + pricePhrase(p) + '.'}`;
+    if(p.upgrade) detail = p.error || 'Solo is for one person. This key is already in use in another browser.';
+    else if(st === 'trialing' && p.trialEnd) detail = `Your free trial ends ${fmtDate(p.trialEnd)}. ${p.cancelAtPeriodEnd ? 'It won’t renew.' : 'Then ' + pricePhrase(p) + '.'}`;
     else if(st === 'active' && p.periodEnd) detail = p.cancelAtPeriodEnd ? `Canceled. Access ends ${fmtDate(p.periodEnd)}.` : `Renews ${fmtDate(p.periodEnd)} at ${pricePhrase(p)}.`;
     else if(st === 'past_due') detail = 'Your last payment didn’t go through. Update your card to keep unlimited checks.';
-    else if(st === 'canceled' || st === 'none') detail = 'This team no longer has an active plan. Start a new trial or contact us.';
-    else if(st === 'unverified_trial') detail = `Unlimited checks for your whole team${p.trialEnd ? ' through ' + fmtDate(p.trialEnd) : ''}.`;
-    else if(st === 'unverified') detail = 'We couldn’t confirm this team’s subscription. Email ' + CONTACT + ' and we’ll sort it out.';
-    else if(!p.details) detail = 'Unlimited checks for your whole team.';
-    h += `<div class="plan-card"><div class="pt"><b>Team plan</b><span class="status ${cls}">${esc(label)}</span></div><div class="pd">${esc(detail)}</div></div>`;
-    h += `<div class="stack">${p.canManage ? `<button class="btn block" type="button" data-portal>Manage subscription</button>` : ''}
-      <p style="font-size:13px;margin:0">Update your card, download invoices, or cancel. Opens Stripe’s secure billing page.</p></div>`;
-    h += `<details style="margin-top:12px"><summary style="cursor:pointer;font-size:14px">Team access key</summary><div style="padding-top:8px">${keyForm('Saved on this device')}<button class="linkbtn" type="button" data-copy style="font-size:13.5px">Copy key to share with your team</button> · <button class="linkbtn" type="button" data-forget style="font-size:13.5px">Remove from this device</button></div></details>`;
+    else if(st === 'canceled' || st === 'none') detail = 'This subscription is no longer active. Start a new trial or contact us.';
+    else if(st === 'unverified_trial') detail = `Checks are included${p.trialEnd ? ' through ' + fmtDate(p.trialEnd) : ''}. We couldn’t confirm Solo or Business yet.`;
+    else if(st === 'unverified') detail = 'We couldn’t confirm this subscription. Email ' + CONTACT + ' and we’ll sort it out.';
+    else if(!p.details) detail = solo ? 'Unlimited checks for one person.' : 'Unlimited checks for your whole team.';
+    const title = solo ? 'Solo plan' : 'Business plan';
+    h += `<div class="plan-card"><div class="pt"><b>${title}</b><span class="status ${p.upgrade ? 'warn' : cls}">${p.upgrade ? 'One person' : esc(label)}</span></div><div class="pd">${esc(detail)}</div></div>`;
+    if(p.upgrade) h += `<div class="stack"><a class="btn block" data-plan-link href="${esc(planUrl())}">Upgrade to Business</a></div>`;
+    h += `<div class="stack">${p.canManage ? `<button class="btn ${p.upgrade ? 'ghost ' : ''}block" type="button" data-portal>Manage subscription</button>` : ''}
+      <p style="font-size:13px;margin:0">${p.upgrade ? 'Business is $29/month or $290/year for unlimited staff, with the same checker.' : 'Update your card, download invoices, or cancel. Opens Stripe’s secure billing page.'}</p></div>`;
+    h += `<details style="margin-top:12px"><summary style="cursor:pointer;font-size:14px">${solo ? 'Your access key' : 'Business access key'}</summary><div style="padding-top:8px">${keyForm('Saved on this device')}${solo ? '<p style="font-size:13.5px;margin:8px 0 0">Solo is for one person. This key works in this browser only.</p>' : '<button class="linkbtn" type="button" data-copy style="font-size:13.5px">Copy key to share with your team</button> · '}<button class="linkbtn" type="button" data-forget style="font-size:13.5px">Remove from this device</button></div></details>`;
   } else {
     const left = p.remaining ?? 0, lim = p.limit ?? 5;
     h += `<div class="plan-card"><div class="pt"><b>Free</b><span class="status free">${left} of ${lim} left today</span></div>
       <div class="meter" aria-hidden="true"><span style="width:${lim ? Math.round(left/lim*100) : 0}%"></span></div>
-      <div class="pd">${lim} free checks a day on this connection. The team plan is unlimited for everyone at your business.</div></div>`;
+      <div class="pd">${lim} free checks a day on this connection. Solo is $9 for one person. Business is $29 for unlimited staff.</div></div>`;
     if(p.httpStatus === 401) h += `<p class="formmsg err" style="font-size:13.5px">${esc(p.error)}</p>`;
     h += billingChoiceHtml();
-    h += `<div class="stack"><a class="btn block" data-plan-link href="${esc(planUrl())}">Start 14-day free trial</a></div>`;
+    h += `<div class="stack"><a class="btn ghost block" data-solo-link hidden>Start Solo trial</a><a class="btn block" data-plan-link href="${esc(planUrl())}">Start Business trial</a></div>`;
     h += `<div style="margin-top:16px">${keyForm('Already subscribed? Paste your team access key')}</div>`;
     h += `<p style="font-size:13.5px;margin-top:6px">Lost your key or need to manage billing? ${p.portalLogin ? `<a href="${esc(p.portalLogin)}">Sign in to billing</a> with your email, or e` : 'E'}mail <a href="mailto:${CONTACT}">${CONTACT}</a>.</p>`;
   }
   el.innerHTML = h;
+  applyBilling();
   const f = el.querySelector('.keyform');
   if(f) f.addEventListener('submit', async e => { e.preventDefault(); const v = f.querySelector('input').value.trim(); const m = f.querySelector('.formmsg');
     if(!v){ store.set('ss-team-key', null); refreshPlan(); return; }
@@ -212,6 +255,6 @@ function build(){
 }
 if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', build); else build();
 
-window.SS = { getKey, headers, refreshPlan, updateQuota, onPlan: f => listeners.push(f), setKey: k => { store.set('ss-team-key', k); refreshPlan(); }, trialUrl: STRIPE_TRIAL, planUrl, billingChoiceHtml };
+window.SS = { getKey, headers, refreshPlan, updateQuota, onPlan: f => listeners.push(f), setKey: k => { store.set('ss-team-key', k); refreshPlan(); }, trialUrl: STRIPE_TRIAL, planUrl, billingChoiceHtml, applyBilling };
 loadPricing();
 })();

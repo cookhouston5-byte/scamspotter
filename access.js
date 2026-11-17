@@ -46,24 +46,53 @@ async function stripePost(path, params){
   return r.json();
 }
 
-// Plan details for the sidebar: status, trial end / renewal date, cancel-at-period-end.
+// Solo is $9/month or $90/year. Business is $29/month or $290/year. Metadata wins over the amount,
+// and an unrecognized paid price stays Business so an existing customer is not locked to one seat.
+function tierOf(sub){
+  if(!sub) return 'business';
+  const named = raw => { const v = String(raw || '').toLowerCase(); return v === 'solo' || v === 'business' ? v : ''; };
+  const top = named(sub.metadata && sub.metadata.plan); if(top) return top;
+  const item = sub.items && sub.items.data && sub.items.data[0];
+  const price = item && (item.price || item.plan);
+  if(!price) return 'business';
+  const product = price.product && typeof price.product === 'object' ? price.product : null;
+  const meta = named(price.metadata && price.metadata.plan) || named(product && product.metadata && product.metadata.plan);
+  if(meta) return meta;
+  const nick = String(price.nickname || price.lookup_key || '').toLowerCase();
+  if(nick.includes('solo')) return 'solo';
+  if(nick.includes('business') || nick.includes('team')) return 'business';
+  const amount = price.unit_amount != null ? price.unit_amount : null;
+  const interval = (price.recurring && price.recurring.interval) || price.interval || null;
+  if((amount === 900 && interval === 'month') || (amount === 9000 && interval === 'year')) return 'solo';
+  if((amount === 2900 && interval === 'month') || (amount === 29000 && interval === 'year')) return 'business';
+  return 'business';
+}
+const ACCESS_STATUSES = ['active','trialing','past_due'];
+function liveSub(subs){
+  const list = (subs && subs.data) || [];
+  return list.filter(s => ACCESS_STATUSES.includes(s.status)).sort((a,b) => ACCESS_STATUSES.indexOf(a.status) - ACCESS_STATUSES.indexOf(b.status))[0] || null;
+}
+
+// Plan details for the sidebar: status, trial end / renewal date, cancel-at-period-end, Solo vs Business.
 // Without STRIPE_SECRET_KEY nothing can be confirmed, so the status is reported honestly as unverified.
 async function planInfo(customerId, issuedAt){
   if(!process.env.STRIPE_SECRET_KEY){
     const ok = withinTrialWindow(issuedAt);
-    return { plan:'team', status: ok ? 'unverified_trial' : 'unverified', details:false,
+    return { plan:'team', tier:'business', seats:null, status: ok ? 'unverified_trial' : 'unverified', details:false,
       trialEnd: ok ? Math.floor((issuedAt + TRIAL_DAYS * 864e5) / 1000) : null };
   }
   const subs = await stripeGet('subscriptions?status=all&limit=10&customer=' + encodeURIComponent(customerId));
   const order = ['active','trialing','past_due','unpaid','canceled','incomplete','incomplete_expired','paused'];
-  const s = (subs.data || []).sort((a,b) => order.indexOf(a.status) - order.indexOf(b.status))[0];
-  if(!s) return { plan:'team', status:'none', details:true };
+  const s = (subs.data || []).slice().sort((a,b) => order.indexOf(a.status) - order.indexOf(b.status))[0];
+  if(!s) return { plan:'team', tier:'business', seats:null, status:'none', details:true };
   const item = s.items && s.items.data && s.items.data[0];
   const price = item && (item.price || item.plan);
   const periodEnd = s.current_period_end || (item && item.current_period_end) || null;
   const interval = price ? ((price.recurring && price.recurring.interval) || price.interval || null) : null;
-  return { plan:'team', status:s.status, details:true, trialEnd:s.trial_end || null, periodEnd,
-    cancelAtPeriodEnd:!!s.cancel_at_period_end, amount: price && price.unit_amount != null ? price.unit_amount : null, interval };
+  const tier = tierOf(s);
+  return { plan: tier === 'solo' ? 'solo' : 'team', tier, seats: tier === 'solo' ? 1 : null, status:s.status, details:true,
+    trialEnd:s.trial_end || null, periodEnd, cancelAtPeriodEnd:!!s.cancel_at_period_end,
+    amount: price && price.unit_amount != null ? price.unit_amount : null, interval };
 }
 
 // Is this team allowed unlimited checks?
@@ -75,29 +104,31 @@ async function planInfo(customerId, issuedAt){
 const subCache = new Map();
 const CONFIRMED_TTL = 6 * 3600e3, STALE_OK = 3 * 864e5, FALLBACK_TTL = 5 * 60e3;
 let warnedNoStripe = false;
-async function isActiveCustomer(customerId, issuedAt){
+async function customerAccess(customerId, issuedAt){
   if(!process.env.STRIPE_SECRET_KEY){
     if(!warnedNoStripe){ warnedNoStripe = true; console.warn('[access] WARNING: STRIPE_SECRET_KEY is not set. Team keys cannot be verified with Stripe and are honored only for ' + (TRIAL_DAYS + 1) + ' days after they were issued.'); }
-    return withinTrialWindow(issuedAt);
+    return { active: withinTrialWindow(issuedAt), tier: 'business' };
   }
   const c = subCache.get(customerId);
-  if(c && Date.now() - c.checkedAt < c.ttl) return c.ok;
-  let ok, ttl = CONFIRMED_TTL, at = Date.now(), confirmed = true;
+  if(c && Date.now() - c.checkedAt < c.ttl) return { active: c.ok, tier: c.tier || 'business' };
+  let ok, tier = 'business', ttl = CONFIRMED_TTL, at = Date.now(), confirmed = true;
   try{
     const subs = await stripeGet('subscriptions?status=all&limit=10&customer=' + encodeURIComponent(customerId));
     // Monthly and yearly are the same subscription. Access follows status, not the price interval.
-    ok = (subs.data || []).some(s => ['active','trialing','past_due'].includes(s.status));
+    const live = liveSub(subs);
+    ok = !!live; if(live) tier = tierOf(live);
   }catch(e){
     confirmed = false; ttl = FALLBACK_TTL;
     const last = c && c.confirmed ? c : null;
-    if(last && Date.now() - last.at < STALE_OK){ ok = last.ok; }
+    if(last && Date.now() - last.at < STALE_OK){ ok = last.ok; tier = last.tier || 'business'; }
     else ok = withinTrialWindow(issuedAt);
     console.error('[access] ERROR: Stripe subscription check failed for ' + customerId + ' (' + e.message + '). Using ' + (last && Date.now() - last.at < STALE_OK ? 'last confirmed answer' : 'trial-window fallback') + ': ' + (ok ? 'allowed' : 'denied') + '.');
-    if(last){ subCache.set(customerId, { ...last, ttl: FALLBACK_TTL, checkedAt: Date.now() }); return ok; }
+    if(last){ subCache.set(customerId, { ...last, tier, ttl: FALLBACK_TTL, checkedAt: Date.now() }); return { active: ok, tier }; }
   }
-  subCache.set(customerId, { ok, at, checkedAt: Date.now(), ttl, confirmed }); if(subCache.size > 5000) subCache.clear();
-  return ok;
+  subCache.set(customerId, { ok, tier, at, checkedAt: Date.now(), ttl, confirmed }); if(subCache.size > 5000) subCache.clear();
+  return { active: ok, tier };
 }
+async function isActiveCustomer(customerId, issuedAt){ const a = await customerAccess(customerId, issuedAt); return a.active; }
 
 // Verify a Stripe webhook signature (Stripe-Signature: t=...,v1=...). rawBody must be the exact bytes received.
 function verifyStripeSignature(rawBody, header, whsec, toleranceSec = 300){
@@ -109,4 +140,4 @@ function verifyStripeSignature(rawBody, header, whsec, toleranceSec = 300){
   return sigs.some(s => s.length === expected.length && crypto.timingSafeEqual(Buffer.from(s), Buffer.from(expected)));
 }
 
-module.exports = { makeKey, parseKey, parseKeyFull, withinTrialWindow, TRIAL_DAYS, _subCache: subCache, isActiveCustomer, stripeGet, stripePost, planInfo, verifyStripeSignature };
+module.exports = { makeKey, parseKey, parseKeyFull, withinTrialWindow, TRIAL_DAYS, _subCache: subCache, isActiveCustomer, customerAccess, tierOf, stripeGet, stripePost, planInfo, verifyStripeSignature };

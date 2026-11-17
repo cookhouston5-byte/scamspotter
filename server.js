@@ -1,6 +1,6 @@
 const express = require('express'); const fs = require('fs'); const net = require('net'); const path = require('path'); const crypto = require('crypto');
 const { analyze } = require('./engine'); const { llmAnalyze } = require('./llm');
-const { makeKey, parseKey, parseKeyFull, isActiveCustomer, stripeGet, stripePost, planInfo, verifyStripeSignature } = require('./access');
+const { makeKey, parseKey, parseKeyFull, customerAccess, stripeGet, stripePost, planInfo, verifyStripeSignature } = require('./access');
 const { sendEmail, notifyOwner, welcomeEmail } = require('./emails');
 
 const SITE = process.env.SITE_URL || 'https://scamspotter.app';
@@ -139,20 +139,59 @@ app.use(express.static(path.join(__dirname,'public'), { extensions:['html'] }));
 
 app.get('/api/health', (req,res)=>res.json({ ok:true, llm: !!process.env.OPENAI_API_KEY }));
 
-// Public prices. The monthly checkout link is fixed. Yearly checkout appears only when YEARLY_PAYMENT_LINK is an https URL.
+// Public prices. Business monthly is fixed. Other checkout buttons appear only for https env links.
 const MONTHLY_PAYMENT_LINK = 'https://buy.stripe.com/7sY7sL3WAdh23e80D0asg04';
-function yearlyPaymentLink(){
-  const u = String(process.env.YEARLY_PAYMENT_LINK || '').trim();
+function httpsLink(name){
+  const u = String(process.env[name] || '').trim();
   return /^https:\/\/\S+$/.test(u) ? u : '';
 }
 app.get('/api/pricing', (req,res)=>{
-  const yearly = yearlyPaymentLink();
+  const yearly = httpsLink('YEARLY_PAYMENT_LINK');
+  const soloMonthly = httpsLink('SOLO_MONTHLY_PAYMENT_LINK');
+  const soloYearly = httpsLink('SOLO_YEARLY_PAYMENT_LINK');
+  const yearlyOffer = { amount: 290, interval: 'year', url: yearly, note: '2 months free' };
   res.json({
     trialDays: 14,
     monthly: { amount: 29, interval: 'month', url: MONTHLY_PAYMENT_LINK },
-    yearly: yearly ? { amount: 290, interval: 'year', url: yearly, note: '2 months free' } : null
+    yearly: yearly ? yearlyOffer : null,
+    business: {
+      name: 'Business', label: 'Unlimited staff',
+      monthly: { amount: 29, interval: 'month', url: MONTHLY_PAYMENT_LINK },
+      yearly: yearly ? yearlyOffer : null
+    },
+    solo: (soloMonthly || soloYearly) ? {
+      name: 'Solo', label: 'For one person', seats: 1,
+      monthly: soloMonthly ? { amount: 9, interval: 'month', url: soloMonthly } : null,
+      yearly: soloYearly ? { amount: 90, interval: 'year', url: soloYearly, note: '2 months free' } : null
+    } : null
   });
 });
+
+// Solo keys work in one browser. The seat id is a random id from that browser, not an IP address.
+const SEATS_FILE = path.join(DATA_DIR, 'seats.json');
+function readSeats(){ try{ return JSON.parse(fs.readFileSync(SEATS_FILE, 'utf8')); }catch{ return {}; } }
+function writeSeats(obj){
+  try{ fs.mkdirSync(DATA_DIR, { recursive:true }); const tmp = SEATS_FILE + '.tmp'; fs.writeFileSync(tmp, JSON.stringify(obj)); fs.renameSync(tmp, SEATS_FILE); }
+  catch(e){ console.error('seats write failed:', e.message); }
+}
+function soloSeat(customerId, seatId){
+  const id = String(seatId || '');
+  if(!/^[A-Za-z0-9_-]{16,80}$/.test(id)) return { ok:false, reason:'missing' };
+  const all = readSeats();
+  const cur = all[customerId];
+  if(!cur){ all[customerId] = { seat:id, at:new Date().toISOString() }; writeSeats(all); return { ok:true }; }
+  if(cur.seat === id) return { ok:true };
+  return { ok:false, reason:'taken' };
+}
+function soloBlock(team){
+  if(!team.valid || team.tier !== 'solo') return null;
+  const seat = soloSeat(team.customer, team.seat);
+  if(seat.ok) return null;
+  const error = seat.reason === 'taken'
+    ? 'Solo is for one person. This key is already in use in another browser. Upgrade to Business for unlimited staff.'
+    : 'Solo is for one person. Open ScamSpotter in your browser so this key stays on that device.';
+  return { error, upgrade:true, reason: seat.reason, plan:{ type:'solo', tier:'solo', seats:1 } };
+}
 
 // Plan / quota helpers
 const today = () => new Date().toISOString().slice(0,10);
@@ -162,7 +201,8 @@ const freeLeft = req => Math.max(0, FREE_PER_DAY - (freeUse.get(freeKey(req)) ||
 async function teamFromReq(req){
   const raw = req.get('x-team-key'); if(!raw) return { has:false };
   const k = parseKeyFull(raw); if(!k) return { has:true, valid:false };
-  return { has:true, valid: await isActiveCustomer(k.customer, k.issuedAt), customer: k.customer, issuedAt: k.issuedAt };
+  const access = await customerAccess(k.customer, k.issuedAt);
+  return { has:true, valid: access.active, tier: access.tier, customer: k.customer, issuedAt: k.issuedAt, seat: String(req.get('x-seat') || '') };
 }
 
 app.post('/api/analyze', limiter(30, 60000, 'Too many checks in a short time. Please wait a minute and try again.'), async (req,res)=>{
@@ -171,7 +211,11 @@ app.post('/api/analyze', limiter(30, 60000, 'Too many checks in a short time. Pl
   if(String(text).length > 50000) return res.status(413).json({ error:'Message too long (50,000 characters max).' });
   const team = await teamFromReq(req);
   let plan;
-  if(team.valid) plan = { type:'team' };
+  if(team.valid){
+    const blocked = soloBlock(team);
+    if(blocked) return res.status(402).json(blocked);
+    plan = { type: team.tier === 'solo' ? 'solo' : 'team', tier: team.tier || 'business' };
+  }
   else {
     const left = freeLeft(req);
     if(left <= 0) return res.status(402).json({ error:`You've used your ${FREE_PER_DAY} free checks for today.`, limit:true, plan:{ type:'free', remaining:0, limit:FREE_PER_DAY, badKey: team.has } });
@@ -201,8 +245,11 @@ app.get('/api/plan', limiter(30, 60000), async (req,res)=>{
   if(!team.customer) return res.status(401).json({ error:'That access key isn’t valid. Check it was copied in full.', plan:'free', remaining: freeLeft(req), limit: FREE_PER_DAY, portalLogin });
   try{
     const info = await planInfo(team.customer, team.issuedAt);
-    res.json({ ...info, active: team.valid, canManage: !!process.env.STRIPE_SECRET_KEY || !!portalLogin, portalLogin });
-  }catch(e){ console.error('plan lookup failed:', e.message); res.json({ plan:'team', status:'unknown', active: team.valid, canManage:true, portalLogin }); }
+    const blocked = soloBlock(team);
+    res.json({ ...info, tier: team.valid ? team.tier : info.tier, active: team.valid, upgrade: !!(blocked && blocked.upgrade),
+      error: blocked ? blocked.error : undefined, seat: blocked ? blocked.reason : (team.tier === 'solo' && team.valid ? 'yours' : undefined),
+      canManage: !!process.env.STRIPE_SECRET_KEY || !!portalLogin, portalLogin });
+  }catch(e){ console.error('plan lookup failed:', e.message); res.json({ plan:'team', tier: team.tier || 'business', status:'unknown', active: team.valid, canManage:true, portalLogin }); }
 });
 
 // "Manage subscription": opens Stripe's billing portal for this customer (update card, invoices, cancel).
@@ -310,7 +357,9 @@ function envReport(){
   miss('OWNER_EMAIL', 'feedback, reviews and new trials are not emailed to you.');
   miss('DATA_DIR', 'feedback, reviews, and visitor stats are written to ./data, which is wiped on every Render deploy. Daily totals are also logged.');
   miss('OPENAI_API_KEY', 'AI second opinion is off; rule-based checks only.');
-  miss('YEARLY_PAYMENT_LINK', 'the yearly plan is hidden and trial buttons stay on the monthly checkout.');
+  miss('YEARLY_PAYMENT_LINK', 'Business yearly checkout is hidden.');
+  miss('SOLO_MONTHLY_PAYMENT_LINK', 'Solo monthly checkout is hidden.');
+  miss('SOLO_YEARLY_PAYMENT_LINK', 'Solo yearly checkout is hidden.');
 }
 const PORT = process.env.PORT || 3000;
 if(require.main===module){ envReport(); app.listen(PORT, ()=>console.log('ScamSpotter on http://localhost:'+PORT)); }
