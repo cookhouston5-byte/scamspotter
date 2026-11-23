@@ -36,7 +36,7 @@ function welcomeEmail({ name, key }){
   <tr><td style="padding:0 32px 8px">
     <p style="margin:0 0 8px;font-size:15px;color:#2b211a"><b>Your team access key</b></p>
     <div style="font-family:Menlo,Consolas,monospace;font-size:14px;background:#fbf7f1;border:1px dashed #e4572e;border-radius:10px;padding:14px 16px;color:#2b211a;word-break:break-all">${esc(key)}</div>
-    <p style="margin:8px 0 0;font-size:13px;color:#6f6257">Share it with anyone on your team. They paste it once under <b>Menu → Your plan</b> on scamspotter.app and get unlimited checks.</p>
+    <p style="margin:8px 0 0;font-size:13px;color:#6f6257">On Business, share it with your staff. They paste it once under <b>Menu → Your plan</b> and get unlimited checks. On Solo, the key is for one person and works in one browser.</p>
   </td></tr>` : '';
   const html = `<!doctype html><html><body style="margin:0;background:#f5eee3;padding:24px 12px">
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center">
@@ -66,9 +66,7 @@ function welcomeEmail({ name, key }){
     <p style="margin:0 0 4px;font-size:15px;line-height:1.6">If anything’s confusing, or a result looks wrong, just reply to this email. It comes straight to me.</p>
   </td></tr>
   <tr><td style="padding:16px 32px 28px">
-    <table role="presentation" cellspacing="0" cellpadding="0"><tr>
-      <td><img src="${SITE}/img/houston-avatar.jpg" width="48" height="48" alt="" style="border-radius:50%;display:block"></td>
-      <td style="padding-left:12px;font-size:14px;line-height:1.4">Houston Cook<br><span style="color:#6f6257">Founder, ScamSpotter · Anchorage, Alaska</span></td></tr></table>
+    <p style="margin:0;font-size:14px;line-height:1.4">Houston Cook<br><span style="color:#6f6257">Founder, ScamSpotter · Anchorage, Alaska</span></p>
   </td></tr>
 </table>
 <p style="font-family:Arial,sans-serif;font-size:12px;color:#9a8c7f;margin:14px 0 0">ScamSpotter · Anchorage, Alaska · <a href="${SITE}/privacy" style="color:#9a8c7f">Privacy</a></p>
@@ -76,7 +74,7 @@ function welcomeEmail({ name, key }){
   const text = `Welcome aboard, ${first}.
 
 Thanks for starting your 14-day free trial. From today, everyone on your team has a quick way to check a suspicious email or text before anyone clicks, pays, or replies.
-${key ? `\nYour team access key:\n${key}\nShare it with your team. Paste it once under Menu > Your plan on scamspotter.app for unlimited checks.\n` : ''}
+${key ? `\nYour access key:\n${key}\nOn Business, share it with your staff. They paste it once under Menu > Your plan for unlimited checks. On Solo, the key is for one person and works in one browser.\n` : ''}
 Three ways to get the most out of it:
 1. Bookmark ${SITE}/check on every work computer and phone.
 2. Make one rule: any request to change bank details, pay by gift card, or log in from a link gets checked first.
