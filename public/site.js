@@ -30,6 +30,14 @@ function setAmt(id, dollars, unit){
   if(amt.firstChild) amt.firstChild.textContent = '$' + dollars;
   if(u) u.textContent = unit;
 }
+function soloOn(){ return !!(pricing.solo && (pricing.solo.monthly || pricing.solo.yearly)); }
+function salesPitch(){
+  const solo = soloOn(), year = yearlyOn();
+  if(solo && year) return 'Solo is $9/month or $90/year for one person. Business is $29/month or $290/year for unlimited staff.';
+  if(solo) return 'Solo is $9/month for one person. Business is $29/month for unlimited staff.';
+  if(year) return 'Business is $29/month or $290/year for unlimited staff.';
+  return 'Business is $29/month for unlimited staff.';
+}
 function priceLine(){
   const year = billing === 'year' && yearlyOn();
   const bizYear = !!(year && slot('business', 'year'));
@@ -38,11 +46,20 @@ function priceLine(){
   if(solo) return '14 days free. Solo is ' + (year && slot('solo', 'year') ? '$90/year' : '$9/month') + ' for one person, or Business is ' + biz + ' for unlimited staff.';
   return bizYear ? '14 days free, then $290/year for unlimited staff.' : '14 days free, then $29/month for unlimited staff.';
 }
+function applyOffers(){
+  const solo = soloOn(), year = yearlyOn();
+  document.querySelectorAll('[data-offer]').forEach(el => {
+    const o = el.dataset.offer;
+    const show = o === 'solo' || o === 'either' ? solo : o === 'yearly' || o === 'solo-year' ? (o === 'solo-year' ? solo && year : year) : o === 'business-only' ? !solo : o === 'monthly-only' ? !year : false;
+    el.hidden = !show;
+  });
+}
 function applyBilling(){
   if(!yearlyOn()) billing = 'month';
   const year = billing === 'year' && yearlyOn();
   document.querySelectorAll('[data-billing]').forEach(el => { el.hidden = !yearlyOn(); });
   document.querySelectorAll('[data-yearly-copy]').forEach(el => { el.hidden = !yearlyOn(); });
+  applyOffers();
   document.querySelectorAll('[data-plan-link]').forEach(a => { a.hidden = false; a.href = planUrl(); });
   document.querySelectorAll('[data-solo-link]').forEach(a => { const url = soloUrl(); a.hidden = !url; if(url) a.href = url; else a.removeAttribute('href'); });
   document.querySelectorAll('[data-solo-card]').forEach(el => { el.hidden = !soloUrl(); });
@@ -139,7 +156,7 @@ function renderPlan(){
   const el = document.getElementById('dm-plan'); if(!el) return; const p = lastPlan;
   if(!p){ el.innerHTML = '<p>Loading your plan…</p>'; return; }
   if(p.error === 'offline'){ el.innerHTML = '<p>Couldn’t load your plan. Check your connection and try again.</p>'; return; }
-  const keyForm = (label) => `<form class="keyform"><label for="dm-key">${label}</label><div class="keyrow"><input id="dm-key" placeholder="SS-cus_…" autocomplete="off" spellcheck="false" value="${esc(getKey())}"><button class="btn sm" type="submit">Save</button></div><p class="formmsg" role="status" style="font-size:13.5px;margin-top:6px"></p></form>`;
+  const keyForm = (label) => `<form class="keyform"><label for="dm-key">${label}</label><div class="keyrow"><input id="dm-key" placeholder="SS-cus_…" autocomplete="off" spellcheck="false" value="${esc(getKey())}"><button class="btn sm" type="submit">Save</button></div><p class="formmsg note" role="status"></p></form>`;
   let h = '';
   const paid = (p.plan === 'team' || p.plan === 'solo') && p.httpStatus !== 401;
   if(paid){
@@ -159,18 +176,18 @@ function renderPlan(){
     h += `<div class="plan-card"><div class="pt"><b>${title}</b><span class="status ${p.upgrade ? 'warn' : cls}">${p.upgrade ? 'One person' : esc(label)}</span></div><div class="pd">${esc(detail)}</div></div>`;
     if(p.upgrade) h += `<div class="stack"><a class="btn block" data-plan-link href="${esc(planUrl())}">Upgrade to Business</a></div>`;
     h += `<div class="stack">${p.canManage ? `<button class="btn ${p.upgrade ? 'ghost ' : ''}block" type="button" data-portal>Manage subscription</button>` : ''}
-      <p style="font-size:13px;margin:0">${p.upgrade ? 'Business is $29/month or $290/year for unlimited staff, with the same checker.' : 'Update your card, download invoices, or cancel. Opens Stripe’s secure billing page.'}</p></div>`;
-    h += `<details style="margin-top:12px"><summary style="cursor:pointer;font-size:14px">${solo ? 'Your access key' : 'Business access key'}</summary><div style="padding-top:8px">${keyForm('Saved on this device')}${solo ? '<p style="font-size:13.5px;margin:8px 0 0">Solo is for one person. This key works in this browser only.</p>' : '<button class="linkbtn" type="button" data-copy style="font-size:13.5px">Copy key to share with your team</button> · '}<button class="linkbtn" type="button" data-forget style="font-size:13.5px">Remove from this device</button></div></details>`;
+      <p class="note0">${p.upgrade ? 'Business is $29/month or $290/year for unlimited staff, with the same checker.' : 'Update your card, download invoices, or cancel. Opens Stripe’s secure billing page.'}</p></div>`;
+    h += `<details class="key-details"><summary class="sum-key">${solo ? 'Your access key' : 'Business access key'}</summary><div class="pt8">${keyForm('Saved on this device')}${solo ? '<p class="note">Solo is for one person. This key works in this browser only.</p>' : '<button class="linkbtn" type="button" data-copy>Copy key to share with your team</button> · '}<button class="linkbtn" type="button" data-forget>Remove from this device</button></div></details>`;
   } else {
     const left = p.remaining ?? 0, lim = p.limit ?? 5;
     h += `<div class="plan-card"><div class="pt"><b>Free</b><span class="status free">${left} of ${lim} left today</span></div>
-      <div class="meter" aria-hidden="true"><span style="width:${lim ? Math.round(left/lim*100) : 0}%"></span></div>
-      <div class="pd">${lim} free checks a day on this connection. Solo is $9 for one person. Business is $29 for unlimited staff.</div></div>`;
-    if(p.httpStatus === 401) h += `<p class="formmsg err" style="font-size:13.5px">${esc(p.error)}</p>`;
+      <div class="meter" aria-hidden="true"><span class="m${lim ? Math.max(0, Math.min(100, Math.round(left / lim * 100))) : 0}"></span></div>
+      <div class="pd">${lim} free checks a day on this connection. ${esc(salesPitch())} Both include a 14-day free trial.</div></div>`;
+    if(p.httpStatus === 401) h += `<p class="formmsg err note">${esc(p.error)}</p>`;
     h += billingChoiceHtml();
     h += `<div class="stack"><a class="btn ghost block" data-solo-link hidden>Start Solo trial</a><a class="btn block" data-plan-link href="${esc(planUrl())}">Start Business trial</a></div>`;
-    h += `<div style="margin-top:16px">${keyForm('Already subscribed? Paste your team access key')}</div>`;
-    h += `<p style="font-size:13.5px;margin-top:6px">Lost your key or need to manage billing? ${p.portalLogin ? `<a href="${esc(p.portalLogin)}">Sign in to billing</a> with your email, or e` : 'E'}mail <a href="mailto:${CONTACT}">${CONTACT}</a>.</p>`;
+    h += `<div class="mt16">${keyForm('Already subscribed? Paste your team access key')}</div>`;
+    h += `<p class="note">Lost your key or need to manage billing? ${p.portalLogin ? `<a href="${esc(p.portalLogin)}">Sign in to billing</a> with your email, or e` : 'E'}mail <a href="mailto:${CONTACT}">${CONTACT}</a>.</p>`;
   }
   el.innerHTML = h;
   applyBilling();
@@ -208,27 +225,27 @@ function build(){
  <details class="dsec" id="m-plan" open><summary>${I.plan}Your plan &amp; subscription</summary><div class="in" id="dm-plan"><p>Loading your plan…</p></div></details>
  <a class="dlink" href="/about">${I.user}About</a>
  <details class="dsec" id="m-reviews"><summary>${I.chat}Customer comments</summary><div class="in"><div id="dm-reviews"><p>Loading…</p></div>
-  <details style="margin-top:6px"><summary style="cursor:pointer;color:var(--accent);font-weight:600">Leave a review</summary>
-  <form class="dform" id="rv" novalidate style="margin-top:10px">
-   <div><span style="display:block;font-size:14px;color:var(--ink);font-weight:500;margin-bottom:4px">Your rating</span><div class="rate">${[5,4,3,2,1].map(n=>`<input type="radio" name="rating" id="rv${n}" value="${n}"><label for="rv${n}" title="${n} star${n>1?'s':''}">★<span class="sr">${n} stars</span></label>`).join('')}</div></div>
+  <details class="review-open"><summary class="review-sum">Leave a review</summary>
+  <form class="dform dform-gap" id="rv" novalidate>
+   <div><span class="rate-label">Your rating</span><div class="rate">${[5,4,3,2,1].map(n=>`<input type="radio" name="rating" id="rv${n}" value="${n}"><label for="rv${n}" title="${n} star${n>1?'s':''}">★<span class="sr">${n} stars</span></label>`).join('')}</div></div>
    <div><label for="rv-name">Name</label><input id="rv-name" name="name" maxlength="80" autocomplete="given-name"></div>
    <div><label for="rv-biz">Business (optional)</label><input id="rv-biz" name="business" maxlength="120" autocomplete="organization"></div>
    <div><label for="rv-c">Comment</label><textarea id="rv-c" name="comment" maxlength="1000"></textarea></div>
    <div class="hp" aria-hidden="true"><label for="rv-w">Leave this empty</label><input id="rv-w" name="website" tabindex="-1" autocomplete="off"></div>
-   <button class="btn" type="submit">Send review</button><p class="formmsg" role="status" style="font-size:13.5px"></p>
-   <p style="font-size:12.5px;margin:0">Reviews are read by Houston before they’re posted.</p></form></details></div></details>
+   <button class="btn" type="submit">Send review</button><p class="formmsg note" role="status"></p>
+   <p class="fine-note">Reviews are read by Houston before they’re posted.</p></form></details></div></details>
  <details class="dsec" id="m-help"><summary>${I.help}Help</summary><div class="in">
-  <p><b style="color:var(--ink)">How to check a message</b></p>
+  <p><b class="help-h">How to check a message</b></p>
   <ol class="helplist"><li>Copy the whole email or text.</li><li>Paste it into the <a href="/check">checker</a>. Add the sender and subject if you have them.</li><li>Read the reasons, then follow “What to do”.</li></ol>
-  <p style="margin-top:12px"><b style="color:var(--ink)">Already clicked, paid, or replied?</b></p>
+  <p class="mt12"><b class="help-h">Already clicked, paid, or replied?</b></p>
   <ul class="helplist"><li>Money sent: call your bank right away and ask them to stop or recall it. Then report it at <a href="https://www.ic3.gov" rel="noopener">ic3.gov</a>.</li>
   <li>Entered a password: change it now, and turn on two-step login.</li><li>Report the scam at <a href="https://reportfraud.ftc.gov" rel="noopener">reportfraud.ftc.gov</a>.</li>
   <li>Forward phishing emails to <a href="mailto:reportphishing@apwg.org">reportphishing@apwg.org</a> and scam texts to 7726 (SPAM).</li></ul>
-  <p style="margin-top:12px"><a href="/#faq">Read the FAQ</a> · <a href="/#feedback">Report a wrong result</a> · <a href="mailto:${CONTACT}">Email us</a></p></div></details>
+  <p class="mt12"><a href="/#faq">Read the FAQ</a> · <a href="/#feedback">Report a wrong result</a> · <a href="mailto:${CONTACT}">Email us</a></p></div></details>
  <details class="dsec" id="m-settings"><summary>${I.gear}Settings</summary><div class="in">
-  <p style="color:var(--ink);font-weight:500;margin-bottom:6px">Appearance</p>
+  <p class="settings-h">Appearance</p>
   <div class="seg" role="radiogroup" aria-label="Appearance">${['light','dark','auto'].map(t=>`<input type="radio" name="theme" id="th-${t}" value="${t}"${t===theme?' checked':''}><label for="th-${t}">${t==='auto'?'Match device':t[0].toUpperCase()+t.slice(1)}</label>`).join('')}</div>
-  <p style="color:var(--ink);font-weight:500;margin:16px 0 6px">This device</p>
+  <p class="settings-h2">This device</p>
   <p>Your team key and theme are saved in this browser only. Messages you check are never saved.</p>
   <button class="btn ghost sm" type="button" data-reset>Clear saved settings</button></div></details>
 </div>`;
@@ -255,6 +272,6 @@ function build(){
 }
 if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', build); else build();
 
-window.SS = { getKey, headers, refreshPlan, updateQuota, onPlan: f => listeners.push(f), setKey: k => { store.set('ss-team-key', k); refreshPlan(); }, trialUrl: STRIPE_TRIAL, planUrl, billingChoiceHtml, applyBilling };
+window.SS = { getKey, headers, refreshPlan, updateQuota, onPlan: f => listeners.push(f), setKey: k => { store.set('ss-team-key', k); refreshPlan(); }, trialUrl: STRIPE_TRIAL, planUrl, billingChoiceHtml, applyBilling, salesPitch };
 loadPricing();
 })();

@@ -1,0 +1,1 @@
+try{ var t = localStorage.getItem('ss-theme') || 'dark'; if(t === 'dark' || (t === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.dataset.theme = 'dark'; }catch(e){}

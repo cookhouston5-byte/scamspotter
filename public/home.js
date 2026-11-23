@@ -32,16 +32,16 @@ form.addEventListener('submit', async e => {
   try{
     const r = await fetch('/api/analyze', { method:'POST', headers: SS.headers({ 'Content-Type':'application/json' }), body: JSON.stringify(input) });
     const j = await r.json();
-    if(r.status === 402 && j.upgrade){ out.innerHTML = `<div class="mini"><p style="margin:0 0 10px"><b>Solo is for one person.</b> ${esc(j.error)} Business is $29/month or $290/year for unlimited staff.</p><div class="ctas"><a class="btn sm" data-plan-link href="${esc(SS.planUrl())}">Upgrade to Business</a></div></div>`; return; }
-    if(r.status === 402){ out.innerHTML = `<div class="mini"><p style="margin:0 0 10px"><b>${esc(j.error)}</b> Come back tomorrow, or start a trial. Solo is $9 for one person. Business is $29 for unlimited staff.</p>${SS.billingChoiceHtml()}<div class="ctas"><a class="btn ghost sm" data-solo-link hidden>Start Solo trial</a><a class="btn sm" data-plan-link href="${esc(SS.planUrl())}">Start Business trial</a><button class="btn ghost sm" type="button" data-menu="plan">I have a key</button></div></div>`; SS.applyBilling(); SS.updateQuota(j.plan); return; }
+    if(r.status === 402 && j.upgrade){ out.innerHTML = `<div class="mini"><p class="mini-lead"><b>Solo is for one person.</b> ${esc(j.error)} Business is $29/month or $290/year for unlimited staff.</p><div class="ctas"><a class="btn sm" data-plan-link href="${esc(SS.planUrl())}">Upgrade to Business</a></div></div>`; return; }
+    if(r.status === 402){ out.innerHTML = `<div class="mini"><p class="mini-lead"><b>${esc(j.error)}</b> Come back tomorrow, or start a trial. ${esc(SS.salesPitch())}</p>${SS.billingChoiceHtml()}<div class="ctas"><a class="btn ghost sm" data-solo-link hidden>Start Solo trial</a><a class="btn sm" data-plan-link href="${esc(SS.planUrl())}">Start Business trial</a><button class="btn ghost sm" type="button" data-menu="plan">I have a key</button></div></div>`; SS.applyBilling(); SS.updateQuota(j.plan); return; }
     if(!r.ok) throw new Error(j.error || 'Something went wrong.');
     SS.updateQuota(j.plan);
     try{ sessionStorage.setItem('ss-last', JSON.stringify({ input, result: j })); }catch(e){}
-    const top = j.reasons.filter(x => x.points > 0).slice(0, 3);
+    const top = j.reasons.filter(x => x.points > 0 || x.severity === 'info').slice(0, 3);
     out.innerHTML = `<div class="mini"><div class="res"><span class="pill ${j.verdict}">${j.verdict}</span><span class="score">Risk ${j.score}/100</span></div>
-      ${top.length ? '<ul>' + top.map(x => '<li>' + esc(x.category) + '</li>').join('') + '</ul>' : '<p style="margin:10px 0 0;color:var(--muted);font-size:14px">No common scam patterns found.</p>'}
+      ${top.length ? '<ul>' + top.map(x => '<li>' + esc(x.category) + '</li>').join('') + '</ul>' : '<p class="mini-empty">No common scam patterns found.</p>'}
       <a class="more" href="/check?from=home">See the full report and what to do →</a></div>`;
-  }catch(err){ out.innerHTML = `<div class="mini"><p style="margin:0;color:var(--bad)">${esc(err.message)}</p></div>`; }
+  }catch(err){ out.innerHTML = `<div class="mini"><p class="mini-err">${esc(err.message)}</p></div>`; }
   finally{ go.disabled = false; go.lastChild.textContent = 'Check it'; }
 });
 

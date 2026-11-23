@@ -12,9 +12,23 @@ const FREE_PER_DAY = Math.max(0, Number(process.env.FREE_CHECKS_PER_DAY ?? 5));
 // Render puts one proxy hop in front of the app, so trust exactly one X-Forwarded-For hop (override with TRUST_PROXY).
 const TRUST_PROXY = process.env.TRUST_PROXY ?? '1';
 const app = express(); app.set('trust proxy', /^\d+$/.test(TRUST_PROXY) ? Number(TRUST_PROXY) : TRUST_PROXY === 'true' ? true : TRUST_PROXY === 'false' ? false : TRUST_PROXY); app.disable('x-powered-by');
-// Security headers (no CSP yet: the pages use inline scripts/styles).
+// Scripts and styles are same-origin files. Top-level links to buy.stripe.com and billing.stripe.com stay allowed
+// because this policy does not set navigate-to. Inline scripts and style attributes are not allowed.
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' https://fonts.googleapis.com",
+  "font-src 'self' https://fonts.gstatic.com",
+  "img-src 'self' data:",
+  "connect-src 'self'",
+  "form-action 'self'",
+  "base-uri 'self'",
+  "object-src 'none'",
+  "frame-ancestors 'none'"
+].join('; ');
 app.use((req,res,next)=>{ res.set({ 'Strict-Transport-Security':'max-age=31536000; includeSubDomains', 'X-Content-Type-Options':'nosniff',
-  'X-Frame-Options':'DENY', 'Referrer-Policy':'strict-origin-when-cross-origin', 'Permissions-Policy':'camera=(), microphone=(), geolocation=()' }); next(); });
+  'X-Frame-Options':'DENY', 'Referrer-Policy':'strict-origin-when-cross-origin', 'Permissions-Policy':'camera=(), microphone=(), geolocation=()',
+  'Content-Security-Policy': CSP }); next(); });
 
 // Anonymous, cookie-free counts. Page views are HTML responses only; bots, static files, and /api/health are skipped.
 // A visitor is a daily-salted hash of IP + user agent. The raw values are never written.
@@ -206,7 +220,12 @@ async function teamFromReq(req){
 }
 
 app.post('/api/analyze', limiter(30, 60000, 'Too many checks in a short time. Please wait a minute and try again.'), async (req,res)=>{
-  const { text='', sender='', subject='' } = req.body||{};
+  const b = req.body;
+  if(!b || typeof b !== 'object' || Array.isArray(b)) return res.status(400).json({ error:'Send the message as JSON with a text field.' });
+  if(b.text != null && typeof b.text !== 'string') return res.status(400).json({ error:'Message text must be plain text.' });
+  if(b.sender != null && typeof b.sender !== 'string') return res.status(400).json({ error:'Sender must be plain text.' });
+  if(b.subject != null && typeof b.subject !== 'string') return res.status(400).json({ error:'Subject must be plain text.' });
+  const { text='', sender='', subject='' } = b;
   if(!String(text).trim()) return res.status(400).json({ error:'Paste the message text to check.' });
   if(String(text).length > 50000) return res.status(413).json({ error:'Message too long (50,000 characters max).' });
   const team = await teamFromReq(req);

@@ -42,7 +42,7 @@ function yearlySub(status){
     const about = read('public/about.html');
     ok(about.includes('data-plan-link href="' + MONTHLY + '"') && about.includes('data-interval="year"'), 'the about page trial button can switch to yearly');
     const terms = read('public/terms.html');
-    ok(terms.includes('$9 per month or $90 per year') && terms.includes('$29 per month or $290 per year') && terms.includes('two months free') && terms.includes('14-day free trial') && terms.includes('same scam checks'), 'terms describe Solo, Business, the trial, and the same checks');
+    ok(terms.includes('Business is $29 per month for unlimited staff') && terms.includes('data-offer="solo" hidden') && terms.includes('data-offer="yearly" hidden') && terms.includes('14-day free trial') && terms.includes('same scam checks'), 'terms show Business monthly until Solo or yearly checkout is turned on');
     const js = read('public/site.js');
     ok(js.includes('$290/year') && js.includes('$29/month') && js.includes('$90/year') && js.includes('$9/month') && js.includes('2 months free'), 'the billing switch updates Solo and Business prices');
 

@@ -53,6 +53,48 @@ const RULES = [
     why:'Asks you to scan a QR code — "quishing" hides malicious links from email filters.' },
 ];
 
+// Spanish phrases for the same categories. Accented words don't work with \b, so the boundary is any non-letter.
+function es(list){
+  return new RegExp('(?:^|[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ])(' + list.join('|') + ')(?![A-Za-zÁÉÍÓÚÜÑáéíóúüñ])', 'i');
+}
+const SPANISH = [
+  { id:'es-urgency', cat:'Urgency pressure', w:12, re: es(['urgente','inmediatamente','de inmediato','ahora mismo','hoy mismo','act[uú]e ahora','actua ahora','[uú]ltim[oa] advertencia','ultimo aviso','cuenta (?:ha sido |est[aá] |fue )?(?:bloqueada|suspendida|cerrada|desactivada)','su cuenta ser[aá] (?:cerrada|suspendida|bloqueada)']),
+    why:'Creates time pressure in Spanish ("urgente", "inmediatamente", "cuenta suspendida"). Scammers rush people so they skip verification.' },
+  { id:'es-gift', cat:'Gift card request', w:30, re: es(['tarjetas? de regalo','tarjeta regalo','c[oó]digos? de (?:las |la )?tarjetas?']),
+    why:'Mentions gift cards in Spanish. Legitimate businesses and vendors never ask to be paid in gift cards.' },
+  { id:'es-bank', cat:'Payment / bank change', w:30, re: es(['datos bancarios','nueva cuenta bancaria','cambio de cuenta','cambiamos de banco','n[uú]mero de cuenta']),
+    why:'Requests a change to bank details in Spanish. Confirm by phone using a number you already have.' },
+  { id:'es-wire', cat:'Wire / unusual payment', w:14, re: es(['transferencia bancaria','giro bancario','env[ií]e (?:el )?(?:dinero|pago)','zelle','bitcoin','criptomoneda']),
+    why:'Asks for a bank transfer or hard-to-reverse payment in Spanish.' },
+  { id:'es-cred', cat:'Credential request', w:20, re: es(['verifica(?:r)? (?:tu|su) (?:cuenta|identidad)','verifique (?:su|tu) (?:cuenta|identidad)','confirma(?:r)? (?:tu|su) (?:cuenta|identidad)','restablece(?:r)? (?:tu|su) contrase[nñ]a','inicie sesi[oó]n']),
+    why:'Asks you to verify an account or password in Spanish — the core move of phishing.' },
+  { id:'es-code', cat:'Verification code request', w:38, re: es(['c[oó]digo de verificaci[oó]n','env[ií]e(?:me)? el c[oó]digo','envia el codigo','contrase[nñ]a de un solo uso']),
+    why:'Asks you to send a verification code. Never share one, even with someone who says they are from the bank.' },
+  { id:'es-prize', cat:'Too good to be true', w:14, re: es(['has ganado','usted ha ganado','reclama(?:r)? (?:tu|su) premio','reclame su premio','loter[ií]a']),
+    why:'Promises a prize in Spanish — a common hook to collect fees or personal info.' },
+  { id:'es-threat', cat:'Threats / consequences', w:10, re: es(['acci[oó]n legal','ser[aá] arrestado','multa','servicio ser[aá] (?:suspendido|cortado)']),
+    why:'Threatens legal action, a fine, or a shut-off in Spanish to force a quick response.' },
+];
+RULES.push(...SPANISH);
+
+const ES_HINT = /(?:^|[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ])(el|la|los|las|una|unos|del|que|su|sus|para|por|con|usted|este|esta|estos|mensaje|cuenta|banco|hoy|gracias|hola|buenos|d[ií]as|por favor|urgente|tarjeta|verificar)(?![A-Za-zÁÉÍÓÚÜÑáéíóúüñ])/gi;
+const EN_HINT = /\b(the|and|to|you|your|is|are|for|this|of|a|an|please|from|with|that|we|our|have|has|will|if|or|not|on|in|it|be)\b/gi;
+function looksSpanish(text){
+  ES_HINT.lastIndex = 0;
+  const hits = text.match(ES_HINT);
+  return !!(hits && hits.length >= 3);
+}
+// A note only. It does not change the score. English and Spanish are checked; other languages are not.
+function otherLanguageNote(text, spanishRulesMatched){
+  if(spanishRulesMatched || looksSpanish(text)) return null;
+  if(/[\u0400-\u04FF\u0600-\u06FF\u0590-\u05FF\u4E00-\u9FFF\u3040-\u30FF\uAC00-\uD7AF]/.test(text)) return true;
+  const words = text.split(/\s+/).filter(w => /[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]/.test(w));
+  if(words.length < 6) return null;
+  EN_HINT.lastIndex = 0;
+  const en = (text.match(EN_HINT) || []).length;
+  return en < 2;
+}
+
 function extractUrls(text){
   const out = [];
   const re = /\b((?:https?:\/\/|www\.)[^\s<>"')\]]+|[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:com|net|org|io|co|app|xyz|top|click|link|info|biz|us|ru|cn|zip|mov|support|live|shop|icu|online|site|me)(?:\/[^\s<>"')\]]*)?)/gi;
@@ -88,7 +130,12 @@ function analyze({ text = '', sender = '', subject = '' } = {}){
   const reasons = []; let score = 0;
   const add = (cat, pts, why, sev) => { reasons.push({ category:cat, points:pts, detail:why, severity: sev || (pts>=20?'high':pts>=10?'medium':'low') }); score += pts; };
 
-  for(const r of RULES){ const m = all.match(r.re); if(m) add(r.cat, r.w, r.why + ` (matched: "${m[0].trim()}")`); }
+  let spanishHit = false;
+  for(const r of RULES){
+    const m = all.match(r.re); if(!m || reasons.some(x => x.category === r.cat)) continue;
+    if(r.id.startsWith('es-')) spanishHit = true;
+    add(r.cat, r.w, r.why + ` (matched: "${(m[1] || m[0]).trim()}")`);
+  }
 
   // Sender analysis
   const s = parseSender(sender);
@@ -157,7 +204,14 @@ function analyze({ text = '', sender = '', subject = '' } = {}){
 
   if((has('Lookalike link')||has('Raw IP link')||has('Disguised characters in link')) && (has('Urgency pressure')||has('Credential request')||has('Threats / consequences'))) add('Combination: deceptive link + pressure', 10, 'A disguised link combined with pressure to act is the standard phishing recipe.');
   if(body.trim().length < 15) reasons.push({ category:'Very little text', points:0, detail:'There isn\'t much to analyze. Paste the full message, including the sender and subject, for a better result.', severity:'info' });
+  if(otherLanguageNote(all, spanishHit)) reasons.push({ category:'Limited language coverage', points:0, detail:'We fully check English and Spanish; treat this result with extra caution.', severity:'info' });
 
+  // A high-risk link ending (.top and the rest of BAD_TLDS) is never a Safe result.
+  if(reasons.some(r => r.category === 'Risky link domain') && score < 25){
+    const hit = reasons.find(r => r.category === 'Risky link domain');
+    hit.points += 25 - score;
+    score = 25;
+  }
   score = Math.max(0, Math.min(100, Math.round(score)));
   const verdict = score >= 55 ? 'Scam' : score >= 25 ? 'Suspicious' : 'Safe';
   reasons.sort((a,b)=>b.points-a.points);

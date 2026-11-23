@@ -29,14 +29,22 @@ function notifyOwner(subject, fields){
   return sendEmail({ to, subject: '[ScamSpotter] ' + subject, html, text, replyTo });
 }
 
+function httpsEnv(name){ return /^https:\/\/\S+$/.test(String(process.env[name] || '').trim()); }
 function welcomeEmail({ name, key }){
   const first = String(name || '').trim().split(/\s+/)[0] || 'there';
+  const solo = httpsEnv('SOLO_MONTHLY_PAYMENT_LINK') || httpsEnv('SOLO_YEARLY_PAYMENT_LINK');
+  const shareHtml = solo
+    ? 'On Business, share it with your staff. They paste it once under <b>Menu → Your plan</b> and get unlimited checks. On Solo, the key is for one person and works in one browser.'
+    : 'Share it with your staff. They paste it once under <b>Menu → Your plan</b> and get unlimited checks.';
+  const shareText = solo
+    ? 'On Business, share it with your staff. They paste it once under Menu > Your plan for unlimited checks. On Solo, the key is for one person and works in one browser.'
+    : 'Share it with your staff. They paste it once under Menu > Your plan for unlimited checks.';
   const subject = 'Welcome to ScamSpotter. Here’s your team access key';
   const keyBlock = key ? `
   <tr><td style="padding:0 32px 8px">
     <p style="margin:0 0 8px;font-size:15px;color:#2b211a"><b>Your team access key</b></p>
     <div style="font-family:Menlo,Consolas,monospace;font-size:14px;background:#fbf7f1;border:1px dashed #e4572e;border-radius:10px;padding:14px 16px;color:#2b211a;word-break:break-all">${esc(key)}</div>
-    <p style="margin:8px 0 0;font-size:13px;color:#6f6257">On Business, share it with your staff. They paste it once under <b>Menu → Your plan</b> and get unlimited checks. On Solo, the key is for one person and works in one browser.</p>
+    <p style="margin:8px 0 0;font-size:13px;color:#6f6257">${shareHtml}</p>
   </td></tr>` : '';
   const html = `<!doctype html><html><body style="margin:0;background:#f5eee3;padding:24px 12px">
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center">
@@ -74,7 +82,7 @@ function welcomeEmail({ name, key }){
   const text = `Welcome aboard, ${first}.
 
 Thanks for starting your 14-day free trial. From today, everyone on your team has a quick way to check a suspicious email or text before anyone clicks, pays, or replies.
-${key ? `\nYour access key:\n${key}\nOn Business, share it with your staff. They paste it once under Menu > Your plan for unlimited checks. On Solo, the key is for one person and works in one browser.\n` : ''}
+${key ? `\nYour access key:\n${key}\n${shareText}\n` : ''}
 Three ways to get the most out of it:
 1. Bookmark ${SITE}/check on every work computer and phone.
 2. Make one rule: any request to change bank details, pay by gift card, or log in from a link gets checked first.
