@@ -6,13 +6,13 @@
 <meta property="og:title" content="ScamSpotter: Scam checker for small businesses"><meta property="og:description" content="Paste a suspicious email or text and get a clear verdict in seconds: Safe, Suspicious, or Scam, with plain-English reasons. Built in Alaska for small business teams.">
 <meta property="og:image" content="https://scamspotter.app/og.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#0a0f1a">
-<script>try{var t=localStorage.getItem('ss-theme')||'dark';if(t==='dark'||(t==='auto'&&matchMedia('(prefers-color-scheme: dark)').matches))document.documentElement.dataset.theme='dark'}catch(e){}</script>
+<script src="/theme.js"></script>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500;1,9..144,600&family=Inter:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="/styles.css">
 <script src="/site.js" defer></script></head><body>
-<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<svg width="0" height="0" class="svg-sprite" aria-hidden="true"><defs>
 <symbol id="i-reticle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="1.5"/><path d="M12 2.5v4M12 17.5v4M2.5 12h4M17.5 12h4"/></symbol>
 <symbol id="i-paste" viewBox="0 0 24 24"><path d="M9 4.5H6.5A1.5 1.5 0 0 0 5 6v13.5A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H15"/><rect x="9" y="3" width="6" height="3" rx="1"/><path d="M8.5 11h7M8.5 14.5h7M8.5 18h4"/></symbol>
 <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3 4.5 6v5.5c0 4.6 3.1 8.3 7.5 9.5 4.4-1.2 7.5-4.9 7.5-9.5V6L12 3Z"/><path d="m8.8 12.2 2.2 2.2 4.3-4.4"/></symbol>
@@ -46,7 +46,7 @@
 </div>
 <div class="lock" id="scan"><span class="c1"></span><span class="c2"></span>
 <form class="scanner" id="hs" novalidate>
-<div class="top"><label for="hs-text" style="margin:0"><b>Paste a suspicious message</b></label><button class="linkbtn" type="button" id="hs-sample">Try a sample scam</button></div>
+<div class="top"><label for="hs-text" class="mt0"><b>Paste a suspicious message</b></label><button class="linkbtn" type="button" id="hs-sample">Try a sample scam</button></div>
 <textarea id="hs-text" placeholder="Paste the email or text here, including who it’s from if you can…"></textarea>
 <div class="row"><button class="btn" type="submit" id="hs-go"><svg class="i"><use href="#i-reticle"/></svg>Check it</button><span class="quota" id="hs-quota" aria-live="polite"></span></div>
 <div id="hs-out" aria-live="polite"></div>
@@ -68,7 +68,7 @@
 <div class="step"><div class="n">03<svg class="i"><use href="#i-shield"/></svg></div><h3>Act with confidence</h3><p>Every result explains why, what to do next, and where to report it.</p></div>
 </div></div></section>
 
-<section id="threats" style="padding-top:0"><div class="wrap"><div class="sec-h"><span class="tag">What it targets</span><h2>The scams aimed at small businesses</h2><p>Tuned for the messages that reach the people who pay bills, run payroll, and answer the front desk.</p></div>
+<section id="threats" class="tight"><div class="wrap"><div class="sec-h"><span class="tag">What it targets</span><h2>The scams aimed at small businesses</h2><p>Tuned for the messages that reach the people who pay bills, run payroll, and answer the front desk.</p></div>
 <div class="threats">
 <div class="card"><div class="ico"><svg class="i"><use href="#i-hook"/></svg></div><h3>Phishing &amp; fake logins</h3><p>“Your Microsoft 365 password expires today.” A link to a fake sign-in page.</p><div class="eg">Lookalike links · spoofed brands · “verify your account”</div></div>
 <div class="card"><div class="ico"><svg class="i"><use href="#i-invoice"/></svg></div><h3>Fake invoices</h3><p>Bills for work you never ordered, or a real vendor’s invoice sent by someone else.</p><div class="eg">Overdue pressure · risky attachments · mismatched senders</div></div>
@@ -84,10 +84,10 @@
 <p>Scam messages keep getting more convincing, and one wrong reply to a fake invoice or a “new bank details” email can cost thousands of dollars that are hard to get back. I wanted a check that anyone on the team can run in seconds, with no jargon.</p>
 <p>If a result ever looks wrong, tell me. I read every message.</p>
 <p class="sig">Houston Cook</p>
-<p style="margin-top:6px"><a href="/about">Read the full story →</a></p></div>
+<p class="mt6"><a href="/about">Read the full story →</a></p></div>
 </div></section>
 
-<section id="pricing"><div class="wrap"><div class="sec-h"><span class="tag">Pricing</span><h2>Free to try. Solo or Business.</h2><p>Same checker either way, with a 14-day free trial. Solo is for one person. Business covers unlimited staff, with no per-seat fees. <span data-yearly-copy hidden>Yearly is two months free: Solo $90, Business $290.</span></p></div>
+<section id="pricing"><div class="wrap"><div class="sec-h"><span class="tag">Pricing</span><h2>Free to try. <span data-offer="business-only">One plan for your team.</span><span data-offer="either" hidden>Solo or Business.</span></h2><p><span data-offer="business-only">Business is $29 per month for unlimited staff, with a 14-day free trial and no per-seat fees.</span><span data-offer="either" hidden>Same checker either way, with a 14-day free trial. Solo is for one person. Business covers unlimited staff, with no per-seat fees.</span> <span data-offer="yearly" hidden>Yearly is two months free<span data-offer="either">: Solo $90, Business $290</span><span data-offer="business-only">: $290 for Business</span>.</span></p></div>
 <div class="bill" data-billing hidden><div class="bill-seg" role="radiogroup" aria-label="Billing period"><button type="button" role="radio" data-interval="month" aria-checked="true">Monthly</button><button type="button" role="radio" data-interval="year" aria-checked="false">Yearly</button></div></div>
 <div class="plans">
 <div class="price"><h3>Free</h3><p class="for">No account</p><div class="amt">$0</div>
@@ -107,23 +107,23 @@
 <p class="small">Secure checkout by Stripe. You won’t be charged until your 14-day trial ends. <a href="/terms">Terms</a></p></div>
 </div></div></section>
 
-<section id="faq" style="padding-top:0"><div class="wrap"><div class="sec-h"><span class="tag">FAQ</span><h2>Questions</h2></div><div class="faq">
+<section id="faq" class="tight"><div class="wrap"><div class="sec-h"><span class="tag">FAQ</span><h2>Questions</h2></div><div class="faq">
 <details><summary>How accurate is it?<svg class="i"><use href="#i-plus"/></svg></summary><p>ScamSpotter looks for the warning signs that show up again and again in real business scams. It catches a lot, but no tool is perfect. Treat “Safe” as one input, not a guarantee. For anything involving money or passwords, verify through a channel you trust.</p></details>
 <details><summary>Do you store the messages we check?<svg class="i"><use href="#i-plus"/></svg></summary><p>No. The checker analyzes the message to produce a result and doesn’t save the message content. If optional AI analysis is turned on, the text is sent to that AI provider for the check. Don’t paste passwords or full card numbers.</p></details>
-<details><summary>How does my team get unlimited checks?<svg class="i"><use href="#i-plus"/></svg></summary><p>Business includes one access key on screen and by email. Share it with your staff. Each person pastes it once under Menu → Your plan, and that browser gets unlimited checks. No individual accounts needed. Solo is for one person: the key works in one browser, and a second browser is asked to upgrade to Business.</p></details>
+<details><summary>How does my team get unlimited checks?<svg class="i"><use href="#i-plus"/></svg></summary><p>Business includes one access key on screen and by email. Share it with your staff. Each person pastes it once under Menu → Your plan, and that browser gets unlimited checks. No individual accounts needed.<span data-offer="solo" hidden> Solo is for one person: the key works in one browser, and a second browser is asked to upgrade to Business.</span></p></details>
 <details><summary>How do I check on or cancel my subscription?<svg class="i"><use href="#i-plus"/></svg></summary><p>Open the Menu (top right) and go to Your plan. It shows whether you’re on the trial, when it ends, and your next renewal date. Tap “Manage subscription” to update your card, download invoices, or cancel.</p></details>
 <details><summary>Can staff forward emails instead of pasting them?<svg class="i"><use href="#i-plus"/></svg></summary><p>A forwarding inbox (forward a message, get the verdict by reply) is in the works and will be included in paid plans. Today, you paste the message into the checker.</p></details>
-<details><summary>What happens after the free trial?<svg class="i"><use href="#i-plus"/></svg></summary><p>Solo is $9 per month for one person. Business is $29 per month for unlimited staff. <span data-yearly-copy hidden>Yearly is $90 for Solo or $290 for Business, which is two months free, with the same features. </span>You add a card at checkout, but you won’t be charged until the 14-day trial ends. Cancel before then and you pay nothing.</p></details>
+<details><summary>What happens after the free trial?<svg class="i"><use href="#i-plus"/></svg></summary><p><span data-offer="business-only">It’s $29 per month for your whole business, with unlimited staff.</span><span data-offer="either" hidden>Solo is $9 per month for one person. Business is $29 per month for unlimited staff.</span> <span data-offer="yearly" hidden><span data-offer="either">Yearly is $90 for Solo or $290 for Business, which is two months free, with the same features. </span><span data-offer="business-only">Yearly is $290, which is two months free. </span></span>You add a card at checkout, but you won’t be charged until the 14-day trial ends. Cancel before then and you pay nothing.</p></details>
 <details><summary>Who’s behind ScamSpotter?<svg class="i"><use href="#i-plus"/></svg></summary><p>Houston Cook, in Anchorage, Alaska. <a href="/about">Read more</a> or email <a href="mailto:hello@scamspotter.app">hello@scamspotter.app</a>.</p></details>
 </div></div></section>
 
-<section class="cta"><div class="wrap"><div class="band"><svg class="i ret" aria-hidden="true" style="stroke-width:.6"><use href="#i-reticle"/></svg>
+<section class="cta"><div class="wrap"><div class="band"><svg class="i ret" aria-hidden="true"><use href="#i-reticle"/></svg>
 <img class="mascot band-mascot" src="/img/knight.svg" alt="" width="92" height="165">
 <div><h2>Put every suspicious message in the crosshairs.</h2><p data-price-line>14 days free, then $29/month for unlimited staff.</p></div>
 <div class="band-buy"><div class="bill" data-billing hidden><div class="bill-seg" role="radiogroup" aria-label="Billing period"><button type="button" role="radio" data-interval="month" aria-checked="true">Monthly</button><button type="button" role="radio" data-interval="year" aria-checked="false">Yearly</button></div><span class="save" data-price-note hidden>2 months free</span></div>
 <div class="ctas"><a class="btn ghost" data-solo-link hidden>Start Solo trial</a><a class="btn" data-plan-link href="https://buy.stripe.com/7sY7sL3WAdh23e80D0asg04">Start Business trial</a></div></div></div></div></section>
 
-<section id="feedback" style="padding-top:0"><div class="wrap"><div class="sec-h"><span class="tag">Feedback</span><h2>Suggest a fix</h2><p>Spotted a bug, a wrong verdict, or something confusing? Your message goes privately to Houston.</p></div>
+<section id="feedback" class="tight"><div class="wrap"><div class="sec-h"><span class="tag">Feedback</span><h2>Suggest a fix</h2><p>Spotted a bug, a wrong verdict, or something confusing? Your message goes privately to Houston.</p></div>
 <form class="grid2 fb" id="fb" novalidate>
 <div><label for="fb-name">Name (optional)</label><input id="fb-name" name="name" maxlength="100" autocomplete="name"></div>
 <div><label for="fb-email">Email (optional, for a reply)</label><input id="fb-email" name="email" type="email" maxlength="200" autocomplete="email"></div>
